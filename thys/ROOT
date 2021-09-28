@@ -1,0 +1,17 @@
+chapter VYDRA
+
+session VYDRA_MDL (AFP) = Containers +
+  theories
+    Interval
+    MDL
+    Monitor_Code
+    Monitor
+    NFA
+    Temporal
+    Timestamp_Lex
+    Timestamp_Prod
+    Timestamp
+    Trace
+    Window
+export_files (in ".") [2]
+    "VYDRA_MDL.Monitor_Code:code/**"
