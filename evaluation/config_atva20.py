@@ -21,7 +21,7 @@ tools = {
         "exec": "/home/hydra/evaluation/r2u2.sh", "fmla": ".mltl", "log": ".r2u2", "pre_flags": "", "flags": "", "script": True
     },
     "vydra": {
-        "exec": "/home/hydra/vydra.opt", "fmla": ".mdl", "fmla_flag": "-fmla", "log": ".log", "log_flag": "-log", "pre_flags": "", "flags": "", "script": False
+        "exec": "/home/hydra/vydra", "fmla": ".mdl", "fmla_flag": "", "log": ".log", "log_flag": "", "pre_flags": "", "flags": "", "script": False
     },
 }
 
@@ -47,11 +47,11 @@ exps = {
 exp_config = {"reps": 2, "timeout": "90", "aggr": "mean"}
 
 plot_config_exp = {
-    "exp_scaling": {"case": "Average-Case", "short": "IO", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Scaling Factor", "xrange": "[0:11]", "yrange": {"time": "[0.01:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xtics": None},
-    "exp_size": {"case": "Average-Case", "short": "SZ", "title": False, "graph_type": "points", "size": "4.5,3", "xlabel": "Formula Size", "xrange": "[0:52]", "yrange": {"time": "[0.001:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xtics": None},
-    "exp_mtl_exp": {"case": "Worst-Case (MTL)", "short": "WC", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Parameter (n)", "xrange": "[0:12]", "yrange": {"time": "[0.001:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xtics": None},
-    "exp_mtl_fixed": {"case": "Fixed Data (MTL)", "short": "RL", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Parameter (n)", "xrange": "[0:22000]", "yrange": {"time": "[0.001:80]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xtics": "0, 4000, 20000"},
-    "exp_pcre": {"case": "PCRE", "short": "RE", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Parameter (n)", "xrange": "[0:110]", "yrange": {"time": "[0.01:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xtics": None},
+    "exp_scaling": {"case": "Average-Case", "short": "IO", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Scaling Factor", "xrange": "[0:11]", "yrange": {"time": "[0.01:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xscale": None},
+    "exp_size": {"case": "Average-Case", "short": "SZ", "title": False, "graph_type": "points", "size": "5,3", "xlabel": "Formula Size", "xrange": "[0:52]", "yrange": {"time": "[0.001:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xscale": None},
+    "exp_mtl_exp": {"case": "Worst-Case (MTL)", "short": "WC", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Parameter (n)", "xrange": "[0:12]", "yrange": {"time": "[0.001:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xscale": None},
+    "exp_mtl_fixed": {"case": "Fixed Data (MTL)", "short": "RL", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Parameter (n)", "xrange": "[0:22]", "yrange": {"time": "[0.001:80]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xscale": 1000},
+    "exp_pcre": {"case": "PCRE", "short": "RE", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Parameter (n)", "xrange": "[0:110]", "yrange": {"time": "[0.01:20]", "space": "[0:30]"}, "log": {"x": None, "y": 10}, "xscale": None},
 }
 
 plot_config_misc = {

@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
     else fmla = new UntilFormula(pred(0), pred(1), {n, n});
 
     print_fmla_hydra(argv[2], fmla);
+    print_fmla_monpoly(argv[2], fmla);
     if (past) print_fmla_reelay(argv[2], fmla);
     print_fmla_r2u2(argv[2], fmla);
     delete fmla;

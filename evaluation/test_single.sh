@@ -19,7 +19,7 @@ then
   exit 1
 fi
 
-../vydra.opt -fmla "fmlas/z_${FID}.mdl" -log "${LOG}.log" > "output/z_${FID}.vydra" 2>> error.log
+../vydra "fmlas/z_${FID}.mdl" "${LOG}.log" > "output/z_${FID}.vydra" 2>> error.log
 if [ "${?}" -ne 0 ]
 then
   cp "fmlas/z_${FID}.mdl" "bug_${FID}.mdl"

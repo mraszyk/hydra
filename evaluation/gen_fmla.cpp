@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
 
     Formula *fmla = gen_fmla();
     print_fmla_hydra(argv[1], fmla);
-    if (!dynamic) print_fmla_monpoly(argv[1], fmla);
+    print_fmla_monpoly(argv[1], fmla);
     if (!dynamic && past_only && untimed && no_zero) print_fmla_reelay(argv[1], fmla);
     if (!dynamic && past_only && untimed) print_fmla_r2u2(argv[1], fmla);
     delete fmla;

@@ -13,8 +13,8 @@ let lexing_error lexbuf fmt = parsing_error (lexeme_start_p lexbuf) (lexeme_end_
 let lex_interval l r =
   let ls = (VYDRA.nat_of_integer (Z.of_string l)) in
   (match r with
-    | "INFINITY" -> VYDRA.enat_interval (VYDRA.Enat ls) VYDRA.Infinity_enat
-    | _ -> VYDRA.enat_interval (VYDRA.Enat ls) (VYDRA.Enat (VYDRA.nat_of_integer (Z.of_string r))))
+    | "INFINITY" -> VYDRA.interval_enat (VYDRA.Enat ls) VYDRA.Infinity_enat
+    | _ -> VYDRA.interval_enat (VYDRA.Enat ls) (VYDRA.Enat (VYDRA.nat_of_integer (Z.of_string r))))
 }
 
 let blank = [' ' '\t' ]+
@@ -31,24 +31,22 @@ rule token = parse
   | "NOT"                                         { NEG }
   | "AND"                                         { CONJ }
   | "OR"                                          { DISJ }
-  | "IMPLIES"                                     { IMP }
-  | "EQUIV"                                       { IFF }
-  | "SINCE"                                       { SINCE }
-  | "UNTIL"                                       { UNTIL }
   | "PREV"                                        { PREV }
   | "NEXT"                                        { NEXT }
+  | "SINCE"                                       { SINCE }
+  | "UNTIL"                                       { UNTIL }
   | "ONCE"                                        { ONCE }
   | "EVENTUALLY"                                  { EVENTUALLY }
   | "HISTORICALLY"                                { HISTORICALLY }
   | "ALWAYS"                                      { ALWAYS }
-  | "("                                           { LOPEN }
-  | ")"                                           { ROPEN }
   | "▷"                                           { FORWARD }
   | "◁"                                           { BACKWARD }
   | "?"                                           { QUESTION }
   | "."                                           { WILDCARD }
   | "+"                                           { PLUS }
   | "*"                                           { STAR }
+  | "("                                           { LOPEN }
+  | ")"                                           { ROPEN }
   | (alpha alphanums)  as name "()"?              { ATOM name }
   | '[' blank* (num as l) blank* "," blank* ((num | "INFINITY") as r) blank* ']'
                                                   { INTERVAL (lex_interval l r) }

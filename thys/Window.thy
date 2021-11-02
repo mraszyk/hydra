@@ -160,6 +160,12 @@ inductive reaches :: "('e \<Rightarrow> ('e \<times> 'f) option) \<Rightarrow> '
     "reaches run s 0 s"
   | "run s = Some (s', v) \<Longrightarrow> reaches run s' n s'' \<Longrightarrow> reaches run s (Suc n) s''"
 
+lemma reaches_invar: "reaches f x n y \<Longrightarrow> P x \<Longrightarrow> (\<And>z z' v. P z \<Longrightarrow> f z = Some (z', v) \<Longrightarrow> P z') \<Longrightarrow> P y"
+  by (induction x n y rule: reaches.induct) auto
+
+lemma reaches_cong: "reaches f x n y \<Longrightarrow> P x \<Longrightarrow> (\<And>z z' v. P z \<Longrightarrow> f z = Some (z', v) \<Longrightarrow> P z') \<Longrightarrow> (\<And>z. P z \<Longrightarrow> f' (g z) = map_option (apfst g) (f z)) \<Longrightarrow> reaches f' (g x) n (g y)"
+  by (induction x n y rule: reaches.induct) (auto intro: reaches.intros)
+
 lemma reach_sub_n: "reach_sub run s vs s' \<Longrightarrow> reaches run s (length vs) s'"
   by (induction s vs s' rule: reach_sub.induct) (auto intro: reaches.intros)
 

@@ -9,7 +9,7 @@ def gen_gnuplot(exp_name, exp_type):
     f = open("tmp_" + exp_name + "_" + exp_type + ".gnuplot", "w")
     print("set terminal postscript eps enhanced color size " + plot_config_exp[exp_name]["size"] + " font '" + plot_config_misc["font"] + "," + plot_config_misc["fontsize"] + "'", file=f)
     print("set bmargin 3.5", file=f)
-    print("set tmargin 2", file=f)
+    print("set tmargin 2.0", file=f)
     print("set lmargin 8.5", file=f)
     print("set rmargin 4.0", file=f)
     out = exp_name + "_" + exp_type + ".eps"
@@ -18,7 +18,7 @@ def gen_gnuplot(exp_name, exp_type):
         print("unset key", file=f)
     if plot_config_exp[exp_name]["title"]:
         print("set title " + "\"" + plot_config_exp[exp_name]["case"] + " " + plot_config_types[exp_type]["name"]  + "\"", file=f)
-    print("set ylabel \"" + plot_config_types[exp_type]["ylabel"] + "\"", file=f)
+    print("set ylabel \"" + plot_config_types[exp_type]["ylabel"] + "\" offset 2,0,0", file=f)
     print("set yrange " + plot_config_exp[exp_name]["yrange"][exp_type], file=f)
     if not plot_config_exp[exp_name]["log"]["y"] is None:
         print("set logscale y "+str(plot_config_exp[exp_name]["log"]["y"]), file=f)
@@ -29,8 +29,6 @@ def gen_gnuplot(exp_name, exp_type):
         print("set xrange " + plot_config_exp[exp_name]["xrange"], file=f)
         if not plot_config_exp[exp_name]["log"]["x"] is None:
             print("set logscale x "+str(plot_config_exp[exp_name]["log"]["x"]), file=f)
-        if not plot_config_exp[exp_name]["xtics"] is None:
-            print("set xtics "+str(plot_config_exp[exp_name]["xtics"]), file=f)
         sep="plot "
         for tool_name in exps[exp_name]["tools"]:
             tool_dict = plot_config_tools[tool_name]
@@ -86,6 +84,9 @@ def process():
             fss = open("tmp_" + tool_name + "_space_S.dat", "w")
             fsa = open("tmp_" + tool_name + "_space_A.dat", "w")
             for n in exp_dict["range"]:
+                sn = str(n)
+                if plot_config_exp[exp_name]["xscale"] is not None:
+                  sn = str(n // plot_config_exp[exp_name]["xscale"])
                 stats_time[exp_name][tool_name][n] = {}
                 stats_space[exp_name][tool_name][n] = {}
                 ta = []
@@ -101,19 +102,19 @@ def process():
                         stats_time[exp_name][tool_name][n][f].append(float(m.group(1)) / 1000.0)
                         stats_space[exp_name][tool_name][n][f].append(float(m.group(2)) / 1000.0)
                     if exp_config["aggr"] == "mean":
-                        print(str(n) + " " + str(mean(stats_time[exp_name][tool_name][n][f])), file=fts)
-                        print(str(n) + " " + str(mean(stats_space[exp_name][tool_name][n][f])), file=fss)
+                        print(sn + " " + str(mean(stats_time[exp_name][tool_name][n][f])), file=fts)
+                        print(sn + " " + str(mean(stats_space[exp_name][tool_name][n][f])), file=fss)
                     elif exp_config["aggr"] == "median":
-                        print(str(n) + " " + str(median(stats_time[exp_name][tool_name][n][f])), file=fts)
-                        print(str(n) + " " + str(median(stats_space[exp_name][tool_name][n][f])), file=fss)
+                        print(sn + " " + str(median(stats_time[exp_name][tool_name][n][f])), file=fts)
+                        print(sn + " " + str(median(stats_space[exp_name][tool_name][n][f])), file=fss)
                     ta += stats_time[exp_name][tool_name][n][f]
                     sa += stats_space[exp_name][tool_name][n][f]
                 if exp_config["aggr"] == "mean":
-                    print(str(n) + " " + str(mean(ta)), file=fta)
-                    print(str(n) + " " + str(mean(sa)), file=fsa)
+                    print(sn + " " + str(mean(ta)), file=fta)
+                    print(sn + " " + str(mean(sa)), file=fsa)
                 elif exp_config["aggr"] == "median":
-                    print(str(n) + " " + str(median(ta)), file=fta)
-                    print(str(n) + " " + str(median(sa)), file=fsa)
+                    print(sn + " " + str(median(ta)), file=fta)
+                    print(sn + " " + str(median(sa)), file=fsa)
             fts.close()
             fta.close()
             fss.close()

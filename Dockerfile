@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 RUN apt-get update
 RUN apt-get upgrade -y
-RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y cmake git gnuplot libboost-dev libfftw3-dev libgmp3-dev locales m4 make opam pkg-config python3-pip vim
+RUN DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y bison cmake flex git gnuplot libboost-dev libfftw3-dev libgmp3-dev locales m4 make opam pkg-config python3-pip vim
 
 RUN adduser --disabled-password --gecos "" hydra
 RUN locale-gen en_US.UTF-8 &&\
@@ -32,8 +32,7 @@ RUN chmod 755 /home/hydra
 RUN chown -R hydra:hydra *
 USER hydra
 
-RUN make -C src
-RUN eval `opam config env`; make -C vydra
+RUN eval `opam config env`; make -C src
 RUN make -C evaluation
 
 USER root

@@ -148,9 +148,9 @@ definition "IH r q0 qf phis transs bss bs i \<equiv>
   transs = build_nfa_impl r (q0, qf, phis) \<and>
   qf \<notin> NFA.SQ q0 (build_nfa_impl r (q0, qf, phis)) \<and>
   (\<forall>k < length (collect_subfmlas r phis).
-    (bs ! k \<longleftrightarrow> sat (i + length bss) (collect_subfmlas r phis ! k))) \<and>
+    (bs ! k \<longleftrightarrow> sat (collect_subfmlas r phis ! k) (i + length bss))) \<and>
   (\<forall>j < length bss. \<forall>k < length (collect_subfmlas r phis).
-    ((bss ! j) ! k \<longleftrightarrow> sat (i + j) (collect_subfmlas r phis ! k)))"
+    ((bss ! j) ! k \<longleftrightarrow> sat (collect_subfmlas r phis ! k) (i + j)))"
 
 lemma nfa_correct: "IH r q0 qf phis transs bss bs i \<Longrightarrow>
   NFA.run_accept q0 qf transs {q0} bss bs \<longleftrightarrow> (i, i + length bss) \<in> match r"
@@ -219,7 +219,7 @@ next
     show ?thesis
     proof (cases "bs ! n")
       case True
-      then have sat_phi: "sat i \<phi>"
+      then have sat_phi: "sat \<phi> i"
         using Test(1)[unfolded IH_def Nil] collect by auto
       have "\<And>q. base.step_eps bs q0 q \<longleftrightarrow> q = qf"
         using True base_step by auto
@@ -230,7 +230,7 @@ next
         by (auto simp: IH_def)
     next
       case False
-      then have sat_phi: "\<not>sat i \<phi>"
+      then have sat_phi: "\<not>sat \<phi> i"
         using Test(1)[unfolded IH_def Nil] collect by auto
       have "\<And>q. \<not>base.step_eps bs q0 q"
         using False base_step by auto
@@ -450,7 +450,7 @@ next
         IH (Star r) q0 qf phis transs (drop n css) bs (i + n + 1)"
         unfolding Cons IH_def
         using aux[of _ _ _ "\<lambda>j. \<forall>k<length (collect_subfmlas r phis).
-          (cs # css) ! j ! k = sat (i + j) (collect_subfmlas r phis ! k)"]
+          (cs # css) ! j ! k = sat (collect_subfmlas r phis ! k) (i + j)"]
         by (auto simp add: nth_append add.assoc)
       have IH_inst: "\<And>xs i. length xs \<le> length css \<Longrightarrow> IH (Star r) q0 qf phis transs xs bs i \<longrightarrow>
         (base.run_accept {q0} xs bs \<longleftrightarrow> (i, i + length xs) \<in> match (Star r))"
@@ -643,7 +643,7 @@ locale MDL_window = MDL \<sigma>
       w_run_t args t = Some (t', x) \<Longrightarrow> x = \<tau> \<sigma> (length ts)"
     and run_sub_sound: "reach_sub (w_run_sub args) sub bs s \<Longrightarrow>
       w_run_sub args s = Some (s', b) \<Longrightarrow>
-      b = IArray (map (sat (length bs)) (collect_subfmlas r []))"
+      b = IArray (map (\<lambda>phi. sat phi (length bs)) (collect_subfmlas r []))"
     and run_t_read: "w_run_t args t = Some (t', x) \<Longrightarrow> w_read_t args t = Some x"
     and read_t_run: "w_read_t args t = Some x \<Longrightarrow> \<exists>t'. w_run_t args t = Some (t', x)"
     and run_sub_read: "w_run_sub args s = Some (s', y) \<Longrightarrow> w_read_sub args s = Some y"
@@ -686,7 +686,7 @@ qed
 
 lemma run_sub_sound':
   assumes "reach_sub (w_run_sub args) sub bs s" "i < length bs"
-  shows "bs ! i = IArray (map (sat i) (collect_subfmlas r []))"
+  shows "bs ! i = IArray (map (\<lambda>phi. sat phi i) (collect_subfmlas r []))"
 proof -
   obtain s' s'' where s'_def: "reach_sub (w_run_sub args) sub (take i bs) s'"
     "w_run_sub args s' = Some (s'', bs ! i)"
@@ -727,7 +727,7 @@ lemma length_bs_at: "reach_sub (w_run_sub args) sub (map snd rho) s \<Longrighta
 
 lemma bs_at_nth: "reach_sub (w_run_sub args) sub (map snd rho) s \<Longrightarrow> i < length rho \<Longrightarrow>
   n < IArray.length (bs_at rho i) \<Longrightarrow>
-  IArray.sub (bs_at rho i) n \<longleftrightarrow> sat i (collect_subfmlas r [] ! n)"
+  IArray.sub (bs_at rho i) n \<longleftrightarrow> sat (collect_subfmlas r [] ! n) i"
   using run_sub_sound'
   unfolding bs_at_def
   by fastforce
@@ -799,7 +799,7 @@ lemma valid_eval_matchP:
   assumes valid_before': "valid_matchP I t0 sub rho j w"
     and before_end: "w_run_t args (w_tj w) = Some (tj''', t)"
     "w_run_sub args (w_sj w) = Some (sj''', b)"
-  shows "\<exists>w'. eval_mP I w = Some ((\<tau> \<sigma> j, sat j (MatchP I r)), w') \<and>
+  shows "\<exists>w'. eval_mP I w = Some ((\<tau> \<sigma> j, sat (MatchP I r) j), w') \<and>
     t = \<tau> \<sigma> j \<and> valid_matchP I t0 sub (rho @ [(t, b)]) (Suc j) w'"
 proof -
   define st where "st = w_st w"
@@ -988,7 +988,7 @@ proof -
     by (auto simp: ts_at_def rho'_def nth_append)
   have b_alt: "(\<exists>q \<in> mmap_keys e'. t \<le> the (mmap_lookup e' q) + right I \<and>
     accept q b) \<or> (mem t t I \<and> accept {0} b) \<longleftrightarrow>
-    sat j (MatchP I r)"
+    sat (MatchP I r) j"
   proof (rule iffI, erule disjE)
     assume "\<exists>q \<in> mmap_keys e'. t \<le> the (mmap_lookup e' q) + right I \<and>
       accept q b"
@@ -1018,18 +1018,18 @@ proof -
       using accept_match[OF reach_sub_sj' l_le_j] q_def(3) length_rho init_def l_def(2)
         rho'_def
       by (auto simp: rho'_def l_def(2)[unfolded rho'_def] bs_at_def nth_append)
-    then show "sat j (MatchP I r)"
+    then show "sat (MatchP I r) j"
       using l_le_j q_def(2) ts_at_tau[OF reach_sub_tj'] tau_l_left
       by (auto simp: mem_def tj_def' rho'_def ts_def l_def(3)[symmetric] tau_l tj_def ts_at_def
           nth_append length_rho intro: exI[of _ l] split: if_splits)
   next
     have "\<tau> \<sigma> j \<le> \<tau> \<sigma> j + right I"
       by (rule right_I_add_mono)
-    then show "mem t t I \<and> accept {0} b \<Longrightarrow> sat j (MatchP I r)"
+    then show "mem t t I \<and> accept {0} b \<Longrightarrow> sat (MatchP I r) j"
       using accept_match[OF reach_sub_sj' order.refl j_len_rho', unfolded steps_refl] bj_def
       by (auto simp add: mem_def tj_def'(1) bs_at_def nth_append)
   next
-    assume "sat j (MatchP I r)"
+    assume "sat (MatchP I r) j"
     then obtain l where l_def: "l \<le> j" "mem (\<tau> \<sigma> l) (\<tau> \<sigma> j) I" "(l, j) \<in> match r"
       by auto
     show "(\<exists>q\<in>mmap_keys e'. t \<le> the (mmap_lookup e' q) + right I \<and>
@@ -1142,7 +1142,7 @@ proof -
     unfolding valid_window_matchP_def adv_end_last[symmetric]
     using adv_loop_bounds adv_last_bounds length_rho valid_after(6)
     by (auto simp: rho'_def i'_def i''_def tj''_def split: option.splits)
-  moreover have "eval_mP I w = Some ((t, sat j (MatchP I r)), w'')"
+  moreover have "eval_mP I w = Some ((t, sat (MatchP I r) j), w'')"
     by (auto simp: read_t_def read_sub_def Let_def loop_def[symmetric]
         ac'_def[unfolded ac_def e'_def] ac''_def(1) adv_end_last trans[OF \<beta>'_def(1) b_alt])
   ultimately show ?thesis
@@ -1342,7 +1342,7 @@ lemma valid_eval_matchF_complete:
     and before_end: "reach_sub (w_run_t args) (w_tj w) (map fst rho') tj'''"
     "reach_sub (w_run_sub args) (w_sj w) (map snd rho') sj'''"
     "w_read_t args (w_ti w) = Some t" "w_read_t args tj''' = Some tm" "\<not>tm \<le> t + right I"
-  shows "\<exists>w'. eval_mF I w = Some ((\<tau> \<sigma> i, sat i (MatchF I r)), w') \<and>
+  shows "\<exists>w'. eval_mF I w = Some ((\<tau> \<sigma> i, sat (MatchF I r) i), w') \<and>
     valid_matchF I t0 sub (take (w_j w') (rho @ rho')) (Suc i) w'"
 proof -
   define st where "st = w_st w"
@@ -1620,7 +1620,7 @@ proof -
     using conjunct2[OF valid_s'] lookup_s'
     by auto (smt case_prodD option.simps(5))
   have b_alt: "(case snd (the (mmap_lookup s' {0})) of None \<Rightarrow> False
-    | Some tstp \<Rightarrow> t + left I \<le> fst tstp) \<longleftrightarrow> sat i (MatchF I r)"
+    | Some tstp \<Rightarrow> t + left I \<le> fst tstp) \<longleftrightarrow> sat (MatchF I r) i"
   proof (rule iffI)
     assume assm: "case snd (the (mmap_lookup s' {0})) of None \<Rightarrow> False
       | Some tstp \<Rightarrow> t + left I \<le> fst tstp"
@@ -1642,12 +1642,12 @@ proof -
       using i'_set(1)[OF tp_props(1)] .
     then have "mem (ts_at rho'' i) (ts_at rho'' tp) I"
       using tstp_def(2) unfolding ts_ts_at mem_def by auto
-    then show "sat i (MatchF I r)"
+    then show "sat (MatchF I r) i"
       using i_le_tp acc_match[OF reach_sj''' i_le_tp] tp_props(2) ts_at_tau[OF reach_tj''']
         tp_props(1) j'_le_rho''
       by auto
   next
-    assume "sat i (MatchF I r)"
+    assume "sat (MatchF I r) i"
     then obtain l where l_def: "l \<ge> i" "mem (\<tau> \<sigma> i) (\<tau> \<sigma> l) I" "(i, l) \<in> match r"
       by auto
     have l_lt_rho: "l < length rho''"
@@ -1749,7 +1749,7 @@ proof -
         j'_def j''_def[symmetric] tj'_def tj''_def[symmetric] sj'_def sj''_def[symmetric]
       by (auto simp: ts_at_def)
   qed
-  moreover have "eval_mF I w = Some ((\<tau> \<sigma> i, sat i (MatchF I r)), w'')"
+  moreover have "eval_mF I w = Some ((\<tau> \<sigma> i, sat (MatchF I r) i), w'')"
     unfolding j''_def adv_start_last[symmetric] adv_last_bounds valid_after rho''_def
       eval_matchF.simps run_t_read[OF tbi_def(1)[unfolded ti_def]]
       run_sub_read[OF tbi_def(2)[unfolded si_def]]
@@ -1765,7 +1765,7 @@ lemma valid_eval_matchF_sound:
   assumes valid_before: "valid_matchF I t0 sub rho i w"
   and eval: "eval_mF I w = Some ((t, b), w'')"
   and bounded: "finite_ts (right I)"
-shows "t = \<tau> \<sigma> i \<and> b = sat i (MatchF I r) \<and> (\<exists>rho'. valid_matchF I t0 sub rho' (Suc i) w'')"
+shows "t = \<tau> \<sigma> i \<and> b = sat (MatchF I r) i \<and> (\<exists>rho'. valid_matchF I t0 sub rho' (Suc i) w'')"
 proof -
   obtain rho' t tm where rho'_def: "reach_sub (w_run_t args) (w_tj w) (map fst rho') (w_tj w'')"
     "reach_sub (w_run_sub args) (w_sj w) (map snd rho') (w_sj w'')"

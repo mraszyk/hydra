@@ -225,6 +225,8 @@ BooleanVerdict UntilMonitor::step_impl() {
         return BooleanVerdict(subhp.ts, UNRESOLVED);
     } else {
         int v = last_sat && last_sat->first - subhp.ts >= from;
-        return BooleanVerdict(subhp.ts, v ? TRUE : FALSE);
+	if (v) return BooleanVerdict(subhp.ts, TRUE);
+	else if (subfp.eof) return BooleanVerdict(subhp.ts, UNRESOLVED);
+	else return BooleanVerdict(subhp.ts, FALSE);
     }
 }

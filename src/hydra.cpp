@@ -98,7 +98,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error: %s\n", e.what());
         exit(EXIT_FAILURE);
     }
-    if (!grep) printFmla(fmla);
+    //if (!grep) printFmla(fmla);
     free(line);
 
     InputReader *input_reader;
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
                 printf("%d:%d %s\n", tp.ts, tp.off, (v.b == FALSE ? "false" : "true"));
             }
         } catch (const EOL &e) {
-            if (!grep) printf("Bye.\n");
+            //if (!grep) printf("Bye.\n");
             break;
         }
     } while(true);

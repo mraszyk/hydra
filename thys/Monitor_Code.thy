@@ -46,28 +46,24 @@ end
 
 derive (rbt) mapping_impl iarray
 
-definition mk_event :: "String.literal list \<Rightarrow> String.literal set" where "mk_event = set"
+definition mk_db :: "String.literal list \<Rightarrow> String.literal set" where "mk_db = set"
 
-definition enat_interval :: "_ \<Rightarrow> _ \<Rightarrow> enat \<I>" where
-  "enat_interval = interval"
-definition sub_vydra :: "_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> (String.literal, enat, 'e) vydra" where
-  "sub_vydra = sub"
-definition run_vydra :: " _ \<Rightarrow> _ \<Rightarrow> (String.literal, enat, 'e) vydra \<Rightarrow> _" where
-  "run_vydra = run"
-definition msize_fmla_vydra :: "(String.literal, enat) formula \<Rightarrow> nat" where
-  "msize_fmla_vydra = msize_fmla"
+definition interval_enat :: "_ \<Rightarrow> _ \<Rightarrow> enat \<I>" where
+  "interval_enat = interval"
+definition init_vydra_string_enat :: "_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> (String.literal, enat, 'e) vydra" where
+  "init_vydra_string_enat = init_vydra"
+definition run_vydra_string_enat :: " _  \<Rightarrow> (String.literal, enat, 'e) vydra \<Rightarrow> _" where
+  "run_vydra_string_enat = run_vydra"
 
-export_code sub_vydra run_vydra msize_fmla_vydra
-  Bool enat enat_interval nat_of_integer integer_of_nat mk_event
+definition interval_ereal :: "_ \<Rightarrow> _ \<Rightarrow> ereal \<I>" where
+  "interval_ereal = interval"
+definition init_vydra_string_ereal :: "_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> (String.literal, ereal, 'e) vydra" where
+  "init_vydra_string_ereal = init_vydra"
+definition run_vydra_string_ereal :: " _  \<Rightarrow> (String.literal, ereal, 'e) vydra \<Rightarrow> _" where
+  "run_vydra_string_ereal = run_vydra"
+
+export_code init_vydra_string_enat run_vydra_string_enat
+  Bool enat interval_enat nat_of_integer integer_of_nat mk_db
   in OCaml module_name VYDRA file_prefix "verified"
-
-definition ereal_interval :: "_ \<Rightarrow> _ \<Rightarrow> ereal \<I>" where
-  "ereal_interval = interval"
-definition sub_real_vydra :: "_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> (String.literal, ereal, 'e) vydra" where
-  "sub_real_vydra = sub"
-definition run_real_vydra :: " _ \<Rightarrow> _ \<Rightarrow> (String.literal, ereal, 'e) vydra \<Rightarrow> _" where
-  "run_real_vydra = run"
-definition msize_fmla_real_vydra :: "(String.literal, ereal) formula \<Rightarrow> real" where
-  "msize_fmla_real_vydra = msize_fmla"
 
 end

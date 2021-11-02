@@ -1,0 +1,1 @@
+NOT (◁ [0,60] (error? . ((NOT auth)? .)* error? . ((NOT auth)? .)* error? . ((NOT auth)? .)*) AND auth)

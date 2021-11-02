@@ -2,35 +2,37 @@ theory Monitor
   imports MDL Temporal
 begin
 
-type_synonym ('e, 'd) time = "('e \<times> 'd) option"
+type_synonym ('h, 't) time = "('h \<times> 't) option"
 
-datatype (dead 'a, dead 'd :: timestamp, dead 'e) vydra_rec =
-  VYDRA_Bool bool 'e
-  | VYDRA_Atom 'a 'e
-  | VYDRA_Neg "('a, 'd, 'e) vydra"
-  | VYDRA_Bin "bool \<Rightarrow> bool \<Rightarrow> bool" "('a, 'd, 'e) vydra" "('a, 'd, 'e) vydra"
-  | VYDRA_MatchP "'d \<I>" "transition iarray" nat
-    "(bool iarray, nat set, 'd, ('e, 'd) time, ('a, 'd, 'e) vydra list) window"
-  | VYDRA_MatchF "'d \<I>" "transition iarray" nat
-    "(bool iarray, nat set, 'd, ('e, 'd) time, ('a, 'd, 'e) vydra list) window"
-    and ('a, 'd, 'e) vydra = VYDRA "(('a, 'd, 'e) vydra_rec \<times> ('d \<times> bool)) option"
+datatype (dead 'a, dead 't :: timestamp, dead 'h) vydra_rec =
+  VYDRA_Bool bool 'h
+  | VYDRA_Atom 'a 'h
+  | VYDRA_Neg "('a, 't, 'h) vydra_aux"
+  | VYDRA_Bin "bool \<Rightarrow> bool \<Rightarrow> bool" "('a, 't, 'h) vydra_aux" "('a, 't, 'h) vydra_aux"
+  | VYDRA_MatchP "'t \<I>" "transition iarray" nat
+    "(bool iarray, nat set, 't, ('h, 't) time, ('a, 't, 'h) vydra_aux list) window"
+  | VYDRA_MatchF "'t \<I>" "transition iarray" nat
+    "(bool iarray, nat set, 't, ('h, 't) time, ('a, 't, 'h) vydra_aux list) window"
+    and ('a, 't, 'h) vydra_aux = VYDRA "(('a, 't, 'h) vydra_rec \<times> ('t \<times> bool)) option"
+
+type_synonym ('a, 't, 'h) vydra = "nat \<times> ('a, 't, 'h) vydra_aux"
 
 definition "iarray_of_list xs = IArray xs"
 
 context
-  fixes init :: "'e"
-    and run_event :: "'e \<Rightarrow> ('e \<times> ('d :: timestamp \<times> 'a set)) option"
+  fixes init_hd :: "'h"
+    and run_hd :: "'h \<Rightarrow> ('h \<times> ('t :: timestamp \<times> 'a set)) option"
 begin
 
-definition t0 :: "('e, 'd) time" where
-  "t0 = (case run_event init of None \<Rightarrow> None | Some (e', (t, X)) \<Rightarrow> Some (e', t))"
+definition t0 :: "('h, 't) time" where
+  "t0 = (case run_hd init_hd of None \<Rightarrow> None | Some (e', (t, X)) \<Rightarrow> Some (e', t))"
 
-fun run_t :: "('e, 'd) time \<Rightarrow> (('e, 'd) time \<times> 'd) option" where
+fun run_t :: "('h, 't) time \<Rightarrow> (('h, 't) time \<times> 't) option" where
   "run_t None = None"
-| "run_t (Some (e, t)) = (case run_event e of None \<Rightarrow> Some (None, t)
+| "run_t (Some (e, t)) = (case run_hd e of None \<Rightarrow> Some (None, t)
   | Some (e', (t', X)) \<Rightarrow> Some (Some (e', t'), t))"
 
-fun read_t :: "('e, 'd) time \<Rightarrow> 'd option" where
+fun read_t :: "('h, 't) time \<Rightarrow> 't option" where
   "read_t None = None"
 | "read_t (Some (e, t)) = Some t"
 
@@ -40,8 +42,8 @@ lemma run_t_read: "run_t x = Some (x', t) \<Longrightarrow> read_t x = Some t"
 lemma read_t_run: "read_t x = Some t \<Longrightarrow> \<exists>x'. run_t x = Some (x', t)"
   by (cases x) (auto split: option.splits)
 
-lemma reach_event_t: "reach_sub run_event e vs e'' \<Longrightarrow> run_event e = Some (e', (t, X)) \<Longrightarrow>
-  run_event e'' = Some (e''', (t', X')) \<Longrightarrow>
+lemma reach_event_t: "reach_sub run_hd e vs e'' \<Longrightarrow> run_hd e = Some (e', (t, X)) \<Longrightarrow>
+  run_hd e'' = Some (e''', (t', X')) \<Longrightarrow>
   reach_sub run_t (Some (e', t)) (map fst vs) (Some (e''', t'))"
 proof (induction e vs e'' arbitrary: t' X' e''' rule: reach_sub_rev_induct)
   case (2 s s' v vs s'')
@@ -55,7 +57,7 @@ proof (induction e vs e'' arbitrary: t' X' e''' rule: reach_sub_rev_induct)
 qed (auto intro: reach_sub.intros)
 
 lemma reach_event_t0_t:
-  assumes "reach_sub run_event init vs e''" "run_event e'' = Some (e''', (t', X'))"
+  assumes "reach_sub run_hd init_hd vs e''" "run_hd e'' = Some (e''', (t', X'))"
   shows "reach_sub run_t t0 (map fst vs) (Some (e''', t'))"
 proof -
   have t0_not_None: "t0 \<noteq> None"
@@ -218,17 +220,17 @@ next
     by fastforce
 qed
 
-fun read :: "('a, 'd, 'e) vydra \<Rightarrow> ('d \<times> bool) option" where
+fun read :: "('a, 't, 'h) vydra_aux \<Rightarrow> ('t \<times> bool) option" where
   "read (VYDRA None) = None"
 | "read (VYDRA (Some (v, x))) = Some x"
 
-fun run :: "nat \<Rightarrow> ('a, 'd, 'e) vydra \<Rightarrow> (('a, 'd, 'e) vydra \<times> ('d \<times> bool)) option" and
-  run_rec :: "nat \<Rightarrow> ('a, 'd, 'e) vydra_rec \<Rightarrow> (('a, 'd, 'e) vydra_rec \<times> ('d \<times> bool)) option" where
+fun run :: "nat \<Rightarrow> ('a, 't, 'h) vydra_aux \<Rightarrow> (('a, 't, 'h) vydra_aux \<times> ('t \<times> bool)) option" and
+  run_rec :: "nat \<Rightarrow> ('a, 't, 'h) vydra_rec \<Rightarrow> (('a, 't, 'h) vydra_rec \<times> ('t \<times> bool)) option" where
   "run n (VYDRA None) = None"
 | "run n (VYDRA (Some (v, x))) = Some (VYDRA (run_rec n v), x)"
-| "run_rec n (VYDRA_Bool b e) = (case run_event e of None \<Rightarrow> None
+| "run_rec n (VYDRA_Bool b e) = (case run_hd e of None \<Rightarrow> None
     | Some (e', (t, _)) \<Rightarrow> Some (VYDRA_Bool b e', (t, b)))"
-| "run_rec n (VYDRA_Atom a e) = (case run_event e of None \<Rightarrow> None
+| "run_rec n (VYDRA_Atom a e) = (case run_hd e of None \<Rightarrow> None
     | Some (e', (t, X)) \<Rightarrow> Some (VYDRA_Atom a e', (t, a \<in> X)))"
 | "run_rec (Suc n) (VYDRA_Neg v) = (case run n v of None \<Rightarrow> None
     | Some (v', (t, b)) \<Rightarrow> Some (VYDRA_Neg v', (t, \<not>b)))"
@@ -245,15 +247,18 @@ fun run :: "nat \<Rightarrow> ('a, 'd, 'e) vydra \<Rightarrow> (('a, 'd, 'e) vyd
     | Some ((t, b), w') \<Rightarrow> Some (VYDRA_MatchF I transs qf w', (t, b)))"
 | "run_rec _ _ = None"
 
-fun m_sub :: "(nat \<times> ('a, 'd) formula) + (nat \<times> ('a, 'd) formula) \<Rightarrow> nat" where
+definition run_vydra :: "('a, 't, 'h) vydra \<Rightarrow> (('a, 't, 'h) vydra \<times> ('t \<times> bool)) option" where
+  "run_vydra v = (case v of (n, w) \<Rightarrow> map_option (apfst (Pair n)) (run n w))"
+
+fun m_sub :: "(nat \<times> ('a, 't) formula) + (nat \<times> ('a, 't) formula) \<Rightarrow> nat" where
   "m_sub (Inl (n, phi)) = 1 + 3 * msize_fmla' phi"
 | "m_sub (Inr (n, phi)) = 3 * msize_fmla' phi"
 
-function (sequential) sub :: "nat \<Rightarrow> ('a, 'd) formula \<Rightarrow> ('a, 'd, 'e) vydra"
-  and sub_rec :: "nat \<Rightarrow> ('a, 'd) formula \<Rightarrow> ('a, 'd, 'e) vydra_rec" where
+function (sequential) sub :: "nat \<Rightarrow> ('a, 't) formula \<Rightarrow> ('a, 't, 'h) vydra_aux"
+  and sub_rec :: "nat \<Rightarrow> ('a, 't) formula \<Rightarrow> ('a, 't, 'h) vydra_rec" where
   "sub n phi = VYDRA (run_rec n (sub_rec n phi))"
-| "sub_rec n (Bool b) = VYDRA_Bool b init"
-| "sub_rec n (Atom a) = VYDRA_Atom a init"
+| "sub_rec n (Bool b) = VYDRA_Bool b init_hd"
+| "sub_rec n (Atom a) = VYDRA_Atom a init_hd"
 | "sub_rec (Suc n) (Neg phi) = VYDRA_Neg (sub n phi)"
 | "sub_rec (Suc n) (Bin f phi psi) = VYDRA_Bin f (sub n phi) (sub n psi)"
 | "sub_rec n (Prev I phi) = sub_rec n (PossiblyP phi I Wild)"
@@ -279,6 +284,9 @@ termination
   using collect_subfmlas_msize'
             apply (fastforce simp: PossiblyP_def PossiblyF_def BaseP_def BaseF_def)+
   done
+
+definition init_vydra :: "('a, 't) formula \<Rightarrow> ('a, 't, 'h) vydra" where
+  "init_vydra \<phi> = (msize_fmla \<phi>, sub (msize_fmla \<phi>) \<phi>)"
 
 lemma run_read_Some: "run n s = Some (s', tb) \<Longrightarrow> read s = Some tb"
   apply (cases s)
@@ -307,34 +315,37 @@ lemma read_run_None: "read s = None \<Longrightarrow> run n s = None"
 end
 
 locale VYDRA_MDL = MDL \<sigma>
-  for \<sigma> :: "('a, 'd :: timestamp) trace" +
-  fixes init :: "'e"
-    and run_event :: "'e \<Rightarrow> ('e \<times> ('d \<times> 'a set)) option"
-  assumes run_event_sound: "reach_sub run_event init es s \<Longrightarrow> run_event s = Some (s', (t, X)) \<Longrightarrow>
-    t = \<tau> \<sigma> (length es) \<and> X = \<Gamma> \<sigma> (length es)"
+  for \<sigma> :: "('a, 't :: timestamp) trace" +
+  fixes init_hd :: "'h"
+    and run_hd :: "'h \<Rightarrow> ('h \<times> ('t \<times> 'a set)) option"
+  assumes run_hd_sound: "reaches run_hd init_hd n s \<Longrightarrow> run_hd s = Some (s', (t, X)) \<Longrightarrow> (t, X) = (\<tau> \<sigma> n, \<Gamma> \<sigma> n)"
 begin
 
-abbreviation "ru_t \<equiv> run_t run_event"
-abbreviation "l_t0 \<equiv> t0 init run_event"
-abbreviation "ru \<equiv> run run_event"
-abbreviation "su \<equiv> sub init run_event"
+lemma reach_sub_run_hd: "reach_sub run_hd init_hd es s \<Longrightarrow> run_hd s = Some (s', (t, X)) \<Longrightarrow> t = \<tau> \<sigma> (length es) \<and> X = \<Gamma> \<sigma> (length es)"
+  using run_hd_sound
+  by (auto dest: reach_sub_n)
+
+abbreviation "ru_t \<equiv> run_t run_hd"
+abbreviation "l_t0 \<equiv> t0 init_hd run_hd"
+abbreviation "ru \<equiv> run run_hd"
+abbreviation "su \<equiv> sub init_hd run_hd"
 
 lemma ru_t_event: "reach_sub ru_t t ts t' \<Longrightarrow> t = l_t0 \<Longrightarrow> ru_t t' = Some (t'', x) \<Longrightarrow>
-  \<exists>rho e tt. t' = Some (e, tt) \<and> reach_sub run_event init rho e \<and> length rho = Suc (length ts) \<and>
+  \<exists>rho e tt. t' = Some (e, tt) \<and> reach_sub run_hd init_hd rho e \<and> length rho = Suc (length ts) \<and>
   x = \<tau> \<sigma> (length ts)"
 proof (induction t ts t' arbitrary: t'' x rule: reach_sub_rev_induct)
   case (1 s)
   show ?case
-    using 1 run_event_sound[OF reach_sub.intros(1)]
+    using 1 reach_sub_run_hd[OF reach_sub.intros(1)]
     by (auto simp: t0_def split: option.splits intro!: reach_sub.intros)
 next
   case (2 s s' v vs s'')
-  obtain rho e tt where rho_def: "s' = Some (e, tt)" "reach_sub run_event init rho e"
+  obtain rho e tt where rho_def: "s' = Some (e, tt)" "reach_sub run_hd init_hd rho e"
     "length rho = Suc (length vs)"
     using 2(3)[OF 2(4,2)]
     by auto
   then show ?case
-    using 2(2,5) reach_sub_app[OF rho_def(2)] run_event_sound[OF rho_def(2)]
+    using 2(2,5) reach_sub_app[OF rho_def(2)] reach_sub_run_hd[OF rho_def(2)]
     by (fastforce split: option.splits)
 qed
 
@@ -342,36 +353,36 @@ lemma ru_t_tau: "reach_sub ru_t l_t0 ts t' \<Longrightarrow> ru_t t' = Some (t''
   using ru_t_event
   by fastforce
 
-inductive wf_vydra :: "('a, 'd) formula \<Rightarrow> ('a, 'd) trace \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow>
-  ('a, 'd :: timestamp, 'e) vydra \<Rightarrow> bool" where
+inductive wf_vydra :: "('a, 't) formula \<Rightarrow> ('a, 't) trace \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow>
+  ('a, 't :: timestamp, 'h) vydra_aux \<Rightarrow> bool" where
   "wf_vydra phi _ _ _ (VYDRA None)"
-| "reach_sub run_event init es sub' \<Longrightarrow> length es = Suc i \<Longrightarrow> t = \<tau> \<sigma> i \<Longrightarrow>
-    \<beta> = sat i (Bool b) \<Longrightarrow> wf_vydra (Bool \<beta>) \<sigma> i n
+| "reach_sub run_hd init_hd es sub' \<Longrightarrow> length es = Suc i \<Longrightarrow> t = \<tau> \<sigma> i \<Longrightarrow>
+    \<beta> = sat (Bool b) i \<Longrightarrow> wf_vydra (Bool \<beta>) \<sigma> i n
       (VYDRA (Some (VYDRA_Bool b sub', (t, b))))"
-| "reach_sub run_event init es sub' \<Longrightarrow> length es = Suc i \<Longrightarrow> t = \<tau> \<sigma> i \<Longrightarrow>
-    b = sat i (Atom a) \<Longrightarrow> wf_vydra (Atom a) \<sigma> i n
+| "reach_sub run_hd init_hd es sub' \<Longrightarrow> length es = Suc i \<Longrightarrow> t = \<tau> \<sigma> i \<Longrightarrow>
+    b = sat (Atom a) i \<Longrightarrow> wf_vydra (Atom a) \<sigma> i n
       (VYDRA (Some (VYDRA_Atom a sub', (t, b))))"
 | "wf_vydra phi \<sigma> (Suc i) n v \<Longrightarrow> reach_sub (ru n) (su n phi) vs v \<Longrightarrow> length vs = Suc i \<Longrightarrow>
-    t = \<tau> \<sigma> i \<Longrightarrow> b = sat i (Neg phi) \<Longrightarrow> Suc n \<ge> msize_fmla (Neg phi) \<Longrightarrow>
+    t = \<tau> \<sigma> i \<Longrightarrow> b = sat (Neg phi) i \<Longrightarrow> Suc n \<ge> msize_fmla (Neg phi) \<Longrightarrow>
     wf_vydra (Neg phi) \<sigma> i (Suc n) (VYDRA (Some (VYDRA_Neg v, (t, b))))"
 | "wf_vydra phi \<sigma> (Suc i) n v \<Longrightarrow> wf_vydra psi \<sigma> (Suc i) n v' \<Longrightarrow>
     reach_sub (ru n) (su n phi) vs v \<Longrightarrow> length vs = Suc i \<Longrightarrow>
     reach_sub (ru n) (su n psi) vs' v' \<Longrightarrow> length vs' = Suc i \<Longrightarrow>
-    t = \<tau> \<sigma> i \<Longrightarrow> b = sat i (Bin f phi psi) \<Longrightarrow> Suc n \<ge> msize_fmla (Bin f phi psi) \<Longrightarrow>
+    t = \<tau> \<sigma> i \<Longrightarrow> b = sat (Bin f phi psi) i \<Longrightarrow> Suc n \<ge> msize_fmla (Bin f phi psi) \<Longrightarrow>
     wf_vydra (Bin f phi psi) \<sigma> i (Suc n) (VYDRA (Some (VYDRA_Bin f v v', (t, b))))"
 | "valid_window_matchP args I l_t0 (map (su n) (collect_subfmlas r [])) xs (Suc i) w \<Longrightarrow>
     n \<ge> msize_regex r \<Longrightarrow> qf = state_cnt r \<Longrightarrow>
     transs = iarray_of_list (build_nfa_impl r (0, qf, [])) \<Longrightarrow>
     args = init_args ({0}, NFA.delta' transs qf, NFA.accept' transs qf)
       (ru_t, read_t) (run_subs (ru n), read_subs read) \<Longrightarrow>
-    t = \<tau> \<sigma> i \<Longrightarrow> b = sat i (MatchP I r) \<Longrightarrow>
+    t = \<tau> \<sigma> i \<Longrightarrow> b = sat (MatchP I r) i \<Longrightarrow>
     wf_vydra (MatchP I r) \<sigma> i (Suc n) (VYDRA (Some (VYDRA_MatchP I transs qf w, (t, b))))"
 | "valid_window_matchF args I l_t0 (map (su n) (collect_subfmlas r [])) xs (Suc i) w \<Longrightarrow>
     n \<ge> msize_regex r \<Longrightarrow> qf = state_cnt r \<Longrightarrow>
     transs = iarray_of_list (build_nfa_impl r (0, qf, [])) \<Longrightarrow>
     args = init_args ({0}, NFA.delta' transs qf, NFA.accept' transs qf)
       (ru_t, read_t) (run_subs (ru n), read_subs read) \<Longrightarrow>
-    t = \<tau> \<sigma> i \<Longrightarrow> b = sat i (MatchF I r) \<Longrightarrow>
+    t = \<tau> \<sigma> i \<Longrightarrow> b = sat (MatchF I r) i \<Longrightarrow>
     wf_vydra (MatchF I r) \<sigma> i (Suc n) (VYDRA (Some (VYDRA_MatchF I transs qf w, (t, b))))"
 | "wf_vydra (PossiblyP phi I Wild) \<sigma> i n v \<Longrightarrow> wf_vydra (Prev I phi) \<sigma> i n v"
 | "wf_vydra (PossiblyF Wild I phi) \<sigma> i n v \<Longrightarrow> wf_vydra (Next I phi) \<sigma> i n v"
@@ -385,7 +396,7 @@ lemma msize_fmla_transform: "msize_fmla (PossiblyP phi I Wild) = Suc (msize_fmla
   by (auto simp: PossiblyP_def PossiblyF_def BaseP_def BaseF_def)
 
 lemma wf_vydraD: "wf_vydra \<phi> \<sigma> i n v \<Longrightarrow> ru n v = Some (v', (t, b)) \<Longrightarrow>
-  t = \<tau> \<sigma> i \<and> b = sat i \<phi>"
+  t = \<tau> \<sigma> i \<and> b = sat \<phi> i"
   apply (induction \<phi> \<sigma> i n v arbitrary: v' rule: wf_vydra.induct)
   using prev_rewrite next_rewrite since_rewrite until_rewrite
          apply (auto simp: msize_fmla_transform split: option.splits)
@@ -441,10 +452,10 @@ lemma bs_sat:
       (map (su n) (collect_subfmlas r [])) rho vs"
     and run_subs: "run_subs (ru n) vs = Some (vs', bs)"
     and bf: "bounded_future_regex r"
-  shows "bs = iarray_of_list (map (sat (length rho)) (collect_subfmlas r []))"
+  shows "bs = iarray_of_list (map (\<lambda>phi. sat phi (length rho)) (collect_subfmlas r []))"
 proof -
   have "\<And>j. j < length (collect_subfmlas r []) \<Longrightarrow>
-    IArray.sub bs j = sat (length rho) (collect_subfmlas r [] ! j)"
+    IArray.sub bs j = sat (collect_subfmlas r [] ! j) (length rho)"
   proof -
     fix j
     assume lassm: "j < length (collect_subfmlas r [])"
@@ -459,7 +470,7 @@ proof -
       using IH[OF phi_in_set] reach_run_subs_run IH[OF phi_in_set] reach_subs lassm phi_def
         bf_phi
       by fastforce
-    show "IArray.sub bs j = sat (length rho) (collect_subfmlas r [] ! j)"
+    show "IArray.sub bs j = sat (collect_subfmlas r [] ! j) (length rho)"
       unfolding phi_def[symmetric]
       using wf_vydraD[OF wf] run_subs_vD[OF run_subs, unfolded reach_run_subs_len[OF reach_subs],
           OF lassm]
@@ -471,7 +482,7 @@ proof -
 qed
 
 lemma sub_induct_rec:
-  fixes phi :: "('a, 'd) formula"
+  fixes phi :: "('a, 't) formula"
   shows "(\<And>b n. P n (Bool b)) \<Longrightarrow> (\<And>a n. P n (Atom a)) \<Longrightarrow>
     (\<And>n phi. msize_fmla phi \<le> n \<Longrightarrow> P n phi \<Longrightarrow> P (Suc n) (Neg phi)) \<Longrightarrow>
     (\<And>n f phi psi. msize_fmla (Bin f phi psi) \<le> Suc n \<Longrightarrow> P n phi \<Longrightarrow> P n psi \<Longrightarrow>
@@ -492,7 +503,7 @@ lemma sub_induct_rec:
   done
 
 lemma sub_induct[case_names Bool Atom Neg Bin Prev Next Since Until MatchP MatchF, consumes 1]:
-  fixes phi :: "('a, 'd) formula"
+  fixes phi :: "('a, 't) formula"
   shows "msize_fmla phi \<le> n \<Longrightarrow> (\<And>b n. P n (Bool b)) \<Longrightarrow> (\<And>a n. P n (Atom a)) \<Longrightarrow>
     (\<And>n phi. msize_fmla phi \<le> n \<Longrightarrow> P n phi \<Longrightarrow> P (Suc n) (Neg phi)) \<Longrightarrow>
     (\<And>n f phi psi. msize_fmla (Bin f phi psi) \<le> Suc n \<Longrightarrow> P n phi \<Longrightarrow> P n psi \<Longrightarrow>
@@ -516,9 +527,9 @@ lemma vydra_wf:
   using assms
 proof (induction n \<phi> arbitrary: vs v rule: sub_induct)
   case (Bool b n)
-  have run_event_init: "\<And>init' t X. run_event init = Some (init', (t, X)) \<Longrightarrow>
-    reach_sub run_event init [(t, X)] init' \<and> t = \<tau> \<sigma> 0 \<and> X = \<Gamma> \<sigma> 0"
-    using run_event_sound
+  have run_event_init: "\<And>init' t X. run_hd init_hd = Some (init', (t, X)) \<Longrightarrow>
+    reach_sub run_hd init_hd [(t, X)] init' \<and> t = \<tau> \<sigma> 0 \<and> X = \<Gamma> \<sigma> 0"
+    using reach_sub_run_hd
     by (fastforce intro: reach_sub.intros)
   show ?case
     using Bool
@@ -529,20 +540,20 @@ proof (induction n \<phi> arbitrary: vs v rule: sub_induct)
       by (auto split: option.splits intro!: wf_vydra.intros)
   next
     case (2 s' v vs s'')
-    have "\<And>es re re' t X. reach_sub run_event init es re \<Longrightarrow> run_event re = Some (re', (t, X)) \<Longrightarrow>
+    have "\<And>es re re' t X. reach_sub run_hd init_hd es re \<Longrightarrow> run_hd re = Some (re', (t, X)) \<Longrightarrow>
       t = \<tau> \<sigma> (length es)"
-      using run_event_sound
+      using reach_sub_run_hd
       by fastforce
     then show ?case
-      using 2 reach_sub_app[of run_event]
+      using 2 reach_sub_app[of run_hd]
       by (fastforce split: option.splits elim: reach_sub.cases elim!: wf_vydra.cases
           intro!: wf_vydra.intros)
   qed
 next
   case (Atom a n)
-  have run_event_init: "\<And>init' t X. run_event init = Some (init', (t, X)) \<Longrightarrow>
-    reach_sub run_event init [(t, X)] init' \<and> t = \<tau> \<sigma> 0 \<and> X = \<Gamma> \<sigma> 0"
-    using run_event_sound
+  have run_event_init: "\<And>init' t X. run_hd init_hd = Some (init', (t, X)) \<Longrightarrow>
+    reach_sub run_hd init_hd [(t, X)] init' \<and> t = \<tau> \<sigma> 0 \<and> X = \<Gamma> \<sigma> 0"
+    using reach_sub_run_hd
     by (fastforce intro: reach_sub.intros)
   show ?case
     using Atom
@@ -553,12 +564,12 @@ next
       by (auto split: option.splits intro!: wf_vydra.intros)
   next
     case (2 s' v vs s'')
-    have "\<And>es re re' t X. reach_sub run_event init es re \<Longrightarrow> run_event re = Some (re', (t, X)) \<Longrightarrow>
+    have "\<And>es re re' t X. reach_sub run_hd init_hd es re \<Longrightarrow> run_hd re = Some (re', (t, X)) \<Longrightarrow>
       t = \<tau> \<sigma> (length es) \<and> X = \<Gamma> \<sigma> (length es)"
-      using run_event_sound
+      using reach_sub_run_hd
       by fastforce
     then show ?case
-      using 2 reach_sub_app[of run_event]
+      using 2 reach_sub_app[of run_hd]
       by (fastforce split: option.splits elim: reach_sub.cases elim!: wf_vydra.cases
           intro!: wf_vydra.intros)
   qed
@@ -586,7 +597,7 @@ next
       using 2(3)
       by auto
     have s''_sound: "\<And>w t b. s'' = VYDRA (Some (VYDRA_Neg w, t, b)) \<Longrightarrow>
-      t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Suc (length vs)) (Neg x)"
+      t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Neg x) (Suc (length vs))"
     proof -
       fix w t b
       assume lassm: "s'' = VYDRA (Some (VYDRA_Neg w, (t, b)))"
@@ -594,7 +605,7 @@ next
         using 2(3)
         unfolding vs'_def lassm
         by (auto split: if_splits option.splits)
-      show "t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Suc (length vs)) (Neg x)"
+      show "t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Neg x) (Suc (length vs))"
         using wf_vydraD[OF vs'_def(3) run_v'(1)]
         unfolding vs'_def(2)
         by auto
@@ -647,7 +658,7 @@ next
       using 2(3) reach_sub_inj[OF vs1_def(1)] reach_sub_inj[OF vs2_def(1)] vs1_def(2) vs2_def(2)
       by (auto split: option.splits elim: wf_vydra.cases)
     have s''_sound: "\<And>w1 w2 t b. s'' = VYDRA (Some (VYDRA_Bin f w1 w2, (t, b))) \<Longrightarrow>
-      t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Suc (length vs)) (Bin f x1 x2)"
+      t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Bin f x1 x2) (Suc (length vs))"
     proof -
       fix w1 w2 t b
       assume lassm: "s'' = VYDRA (Some (VYDRA_Bin f w1 w2, (t, b)))"
@@ -660,7 +671,7 @@ next
           vs1_def(2) vs2_def(2)
         unfolding s'_def lassm
         by (auto split: if_splits option.splits)
-      then show "t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Suc (length vs)) (Bin f x1 x2)"
+      then show "t = \<tau> \<sigma> (Suc (length vs)) \<and> b = sat (Bin f x1 x2) (Suc (length vs))"
         using wf_vydraD[OF vs1_def(3) run_v1] wf_vydraD[OF vs2_def(3) run_v2]
           2(3) run_v1 run_v2
         unfolding vs1_def(2) vs2_def(2) s'_def lassm
@@ -719,8 +730,8 @@ next
     (ru_t, read_t) (run_subs (ru n), read_subs read))"
   interpret MDL_window \<sigma> r l_t0 "map (su n) (collect_subfmlas r [])" args
     using bs_sat[OF IH] run_read_subs[of "ru n" read] read_run_subs[of read "ru n"]
-      run_read_Some[of run_event] read_run_Some[of _ _ run_event] run_t_read[of run_event]
-      read_t_run[of _ _ run_event] ru_t_tau bf
+      run_read_Some[of run_hd] read_run_Some[of _ _ run_hd] run_t_read[of run_hd]
+      read_t_run[of _ _ run_hd] ru_t_tau bf
     unfolding args_def iarray_of_list_def
     by unfold_locales auto
   define l_sub where "l_sub = map (su n) (collect_subfmlas r [])"
@@ -742,7 +753,7 @@ next
         "w_run_sub args (w_sj w) = Some (sj', bs)"
         using Some read_t_run read_sub_run
         by (fastforce simp: Let_def split: option.splits)
-      obtain w' where w'_def: "eval_mP I w = Some ((\<tau> \<sigma> 0, sat 0 (MatchP I r)), w')"
+      obtain w' where w'_def: "eval_mP I w = Some ((\<tau> \<sigma> 0, sat (MatchP I r) 0), w')"
         "valid_matchP I l_t0 l_sub [(t, bs)] (Suc 0) w'"
         using valid_eval_matchP[OF valid_init_matchP[folded w_def], unfolded somes]
         by (fastforce simp: l_sub_def)
@@ -773,12 +784,12 @@ next
         using Some read_t_run read_sub_run
         by (fastforce simp: Let_def split: option.splits)
       obtain w' where w'_def: "eval_mP I w = Some ((\<tau> \<sigma> (Suc (length vs)),
-        sat (Suc (length vs)) (MatchP I r)), w')"
+        sat (MatchP I r) (Suc (length vs))), w')"
         "valid_matchP I l_t0 l_sub (xs @ [(t', bs)]) (Suc (Suc (length vs))) w'"
         using valid_eval_matchP[folded l_sub_def, OF valid_window, unfolded somes]
         by fastforce
       have s''_def: "s'' = VYDRA (Some (VYDRA_MatchP I (iarray_of_list transs) qf w',
-        (\<tau> \<sigma> (Suc (length vs)), sat (Suc (length vs)) (MatchP I r))))"
+        (\<tau> \<sigma> (Suc (length vs)), sat (MatchP I r) (Suc (length vs)))))"
         using 2(3)[unfolded s'_def] w'_def(1)
         by (auto simp: transs_def qf_def args')
       show ?thesis
@@ -813,8 +824,8 @@ next
     (ru_t, read_t) (run_subs (ru n), read_subs read))"
   interpret MDL_window \<sigma> r l_t0 "map (su n) (collect_subfmlas r [])" args
     using bs_sat[OF IH] run_read_subs[of "ru n" read] read_run_subs[of read "ru n"]
-      run_read_Some[of run_event] read_run_Some[of _ _ run_event] run_t_read[of run_event]
-      read_t_run[of _ _ run_event] ru_t_tau bf
+      run_read_Some[of run_hd] read_run_Some[of _ _ run_hd] run_t_read[of run_hd]
+      read_t_run[of _ _ run_hd] ru_t_tau bf
     unfolding args_def iarray_of_list_def
     by unfold_locales auto
   define l_sub where "l_sub = map (su n) (collect_subfmlas r [])"
@@ -832,7 +843,7 @@ next
         by (auto simp: args' w_def' Let_def intro: wf_vydra.intros)
     next
       case (Some a)
-      obtain w' rho' where w'_def: "eval_mF I w = Some ((\<tau> \<sigma> 0, sat 0 (MatchF I r)), w')"
+      obtain w' rho' where w'_def: "eval_mF I w = Some ((\<tau> \<sigma> 0, sat (MatchF I r) 0), w')"
         "valid_matchF I l_t0 (map (su n) (collect_subfmlas r [])) rho' (Suc 0) w'"
         using valid_eval_matchF_sound[OF valid_init_matchF[folded w_def] _ bf(2)] Some
         by (cases a) (fastforce simp del: eval_matchF.simps)
@@ -859,12 +870,12 @@ next
     next
       case (Some a)
       obtain w' rho' where w'_def: "eval_mF I w = Some ((\<tau> \<sigma> (Suc (length vs)),
-        sat (Suc (length vs)) (MatchF I r)), w')"
+        sat (MatchF I r) (Suc (length vs))), w')"
         "valid_matchF I l_t0 (map (su n) (collect_subfmlas r [])) rho' (Suc (Suc (length vs))) w'"
         using valid_eval_matchF_sound[OF valid_window[unfolded l_sub_def] _ bf(2)] Some
         by (cases a) (fastforce simp del: eval_matchF.simps)
       have s''_def: "s'' = VYDRA (Some (VYDRA_MatchF I (iarray_of_list transs) qf w',
-        (\<tau> \<sigma> (Suc (length vs)), sat (Suc (length vs)) (MatchF I r))))"
+        (\<tau> \<sigma> (Suc (length vs)), sat (MatchF I r) (Suc (length vs)))))"
         using 2(3)[unfolded s'_def] w'_def(1)
         by (auto simp: transs_def qf_def args')
       show ?thesis
@@ -931,14 +942,14 @@ qed (auto intro: reach_sub.intros)
 lemma reach_subs_runI:
   assumes "\<And>phi. phi \<in> set (collect_subfmlas r []) \<Longrightarrow>
     \<exists>ws v. reach_sub (ru n) (su n phi) ws v \<and> length ws = length vs \<and> ru n v \<noteq> None"
-    "reach_sub run_event init vs e" "run_event e = Some (e', (t, X))"
+    "reach_sub run_hd init_hd vs e" "run_hd e = Some (e', (t, X))"
     and n_def: "n \<ge> msize_regex r"
   shows "\<exists>ws v. reach_sub (run_subs (ru n)) (map (su n) (collect_subfmlas r [])) ws v \<and>
     length ws = length vs \<and> run_subs (ru n) v \<noteq> None"
   using assms
 proof (induction vs arbitrary: e e' t X rule: rev_induct)
   case Nil
-  have e_init: "e = init"
+  have e_init: "e = init_hd"
     using Nil(2)
     by (auto elim: reach_sub.cases)
   have "run_subs (ru n) (map (su n) (collect_subfmlas r [])) \<noteq> None"
@@ -949,8 +960,8 @@ proof (induction vs arbitrary: e e' t X rule: rev_induct)
     by (fastforce intro: reach_sub.intros)
 next
   case (snoc x xs)
-  obtain s' x_t x_X where s'_def: "reach_sub run_event init xs s'"
-    "run_event s' = Some (e, (x_t, x_X))"
+  obtain s' x_t x_X where s'_def: "reach_sub run_hd init_hd xs s'"
+    "run_hd s' = Some (e, (x_t, x_X))"
     using reach_sub_split_last[OF snoc(3)]
     by fastforce
   have IH': "\<And>phi. phi \<in> set (collect_subfmlas r []) \<Longrightarrow>
@@ -1017,9 +1028,9 @@ lemma reach_sub_takeWhile: "reach_sub r s vs s' \<Longrightarrow> r s' = Some (s
   by (induction s vs s' arbitrary: vs' rule: reach_sub.induct) (auto intro: reach_sub.intros)
 
 lemma vydra_complete_sub:
-  assumes prefix: "reach_sub run_event e0 vs e" "run_event e = Some (e', (t, X))"
-    and prefix': "reach_sub run_event e vs' f" "run_event f = Some (f', (t', X'))"
-    and e0: "e0 = init"
+  assumes prefix: "reach_sub run_hd e0 vs e" "run_hd e = Some (e', (t, X))"
+    and prefix': "reach_sub run_hd e vs' f" "run_hd f = Some (f', (t', X'))"
+    and e0: "e0 = init_hd"
     and reach: "\<not>t' \<le> t + FR_fmla \<phi>" "bounded_future_fmla \<phi>"
     and n_ge: "n \<ge> msize_fmla \<phi>"
   shows "\<exists>ws v. reach_sub (ru n) (su n \<phi>) ws v \<and> length ws = length vs \<and> ru n v \<noteq> None"
@@ -1036,8 +1047,8 @@ proof (induction n \<phi> arbitrary: vs e e' t X vs' f f' t' X' rule: sub_induct
     have msize: "msize_fmla (Bool x) \<le> n"
       by auto
     have v_t_le: "v_t \<le> t"
-      using run_event_sound[OF reach' 2(4)]
-        run_event_sound[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
+      using reach_sub_run_hd[OF reach' 2(4)]
+        reach_sub_run_hd[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
       by auto
     have ets_v_t: "\<not>t' \<le> v_t + FR_fmla (Bool x)"
       using 2(8) add_mono_comm[OF v_t_le, of "FR_fmla (Bool x)"] order.trans
@@ -1070,8 +1081,8 @@ next
     have msize: "msize_fmla (Atom x) \<le> n"
       by auto
     have v_t_le: "v_t \<le> t"
-      using run_event_sound[OF reach' 2(4)]
-        run_event_sound[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
+      using reach_sub_run_hd[OF reach' 2(4)]
+        reach_sub_run_hd[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
       by auto
     have ets_v_t: "\<not>t' \<le> v_t + FR_fmla (Atom x)"
       using 2(8) add_mono_comm[OF v_t_le, of "FR_fmla (Atom x)"] order.trans
@@ -1111,8 +1122,8 @@ next
       by (cases v) auto
     note reach' = reach_sub_app[OF 2(1,2), unfolded 2(7)]
     have v_t_le: "v_t \<le> t"
-      using run_event_sound[OF reach' 2(4)]
-        run_event_sound[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
+      using reach_sub_run_hd[OF reach' 2(4)]
+        reach_sub_run_hd[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
       by auto
     have ets_v_t: "\<not>t' \<le> v_t + FR_fmla (Neg x)"
       using 2(8) add_mono_comm[OF v_t_le] order.trans
@@ -1171,8 +1182,8 @@ next
       by (cases v) auto
     note reach' = reach_sub_app[OF 2(1,2), unfolded 2(7)]
     have v_t_le: "v_t \<le> t"
-      using run_event_sound[OF reach' 2(4)]
-        run_event_sound[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
+      using reach_sub_run_hd[OF reach' 2(4)]
+        reach_sub_run_hd[OF 2(1)[unfolded 2(7)] 2(2)[unfolded v_def]]
       by auto
     have ets_v_t: "\<not>t' \<le> v_t + FR_fmla x1" "\<not>t' \<le> v_t + FR_fmla x2"
       "\<not>t' \<le> v_t + FR_fmla (Bin op x1 x2)"
@@ -1235,8 +1246,8 @@ next
     by auto
   interpret MDL_window \<sigma> r l_t0 "map (su n) (collect_subfmlas r [])" args
     using bs_sat[OF vydra_wf, OF msize_sub] run_read_subs[of "ru n" read]
-      read_run_subs[of read "ru n"] run_read_Some[of run_event] read_run_Some[of _ _ run_event]
-      run_t_read[of run_event] read_t_run[of _ _ run_event] ru_t_tau bf
+      read_run_subs[of read "ru n"] run_read_Some[of run_hd] read_run_Some[of _ _ run_hd]
+      run_t_read[of run_hd] read_t_run[of _ _ run_hd] ru_t_tau bf
     unfolding args_def iarray_of_list_def
     by unfold_locales auto
   define l_sub where "l_sub = map (su n) (collect_subfmlas r [])"
@@ -1352,8 +1363,8 @@ next
     by auto
   interpret MDL_window \<sigma> r l_t0 "map (su n) (collect_subfmlas r [])" args
     using bs_sat[OF vydra_wf, OF msize_sub] run_read_subs[of "ru n" read]
-      read_run_subs[of read "ru n"] run_read_Some[of run_event] read_run_Some[of _ _ run_event]
-      run_t_read[of run_event] read_t_run[of _ _ run_event] ru_t_tau bf
+      read_run_subs[of read "ru n"] run_read_Some[of run_hd] read_run_Some[of _ _ run_hd]
+      run_t_read[of run_hd] read_t_run[of _ _ run_hd] ru_t_tau bf
     unfolding args_def iarray_of_list_def
     by unfold_locales auto
   define l_sub where "l_sub = map (su n) (collect_subfmlas r [])"
@@ -1365,9 +1376,9 @@ next
     using MatchF(8) add_mono[OF FR_pos(2), of "t + right I"] order.trans
     by (auto simp: add.assoc)
   define rho where rho_def: "rho = takeWhile (\<lambda>(tt, X). tt \<le> t + right I) vs'"
-  obtain g g' g_t g_X where g_def: "reach_sub run_event e rho g"
-    "reach_sub run_event g (drop (length rho) vs') f"
-    "run_event g = Some (g', (g_t, g_X))" "\<not>g_t \<le> t + right I"
+  obtain g g' g_t g_X where g_def: "reach_sub run_hd e rho g"
+    "reach_sub run_hd g (drop (length rho) vs') f"
+    "run_hd g = Some (g', (g_t, g_X))" "\<not>g_t \<le> t + right I"
     using reach_sub_takeWhile[OF MatchF(5,6) not_ets_tt rho_def]
     by auto
   obtain rho' rho_last where rho_split: "rho = rho' @ [rho_last]"
@@ -1375,8 +1386,8 @@ next
     by (cases rho rule: rev_cases) (auto elim!: reach_sub.cases)+
   obtain rho_last_t rho_last_X where rho_last_def: "rho_last = (rho_last_t, rho_last_X)"
     by (cases rho_last) auto
-  obtain h where h_def: "reach_sub run_event e rho' h"
-    "run_event h = Some (g, (rho_last_t, rho_last_X))"
+  obtain h where h_def: "reach_sub run_hd e rho' h"
+    "run_hd h = Some (g, (rho_last_t, rho_last_X))"
     using reach_sub_split_last[OF g_def(1)[unfolded rho_split rho_last_def]]
     by auto
   have "(rho_last_t, rho_last_X) \<in> set rho"
@@ -1612,20 +1623,20 @@ qed
 definition "ru' \<phi> = ru (msize_fmla \<phi>)"
 definition "su' \<phi> = su (msize_fmla \<phi>) \<phi>"
 
-lemma vydra_sound:
+lemma vydra_aux_sound:
   assumes "reaches (ru' \<phi>) (su' \<phi>) n v" "ru' \<phi> v = Some (v', (t, b))" "bounded_future_fmla \<phi>"
-  shows "t = \<tau> \<sigma> n \<and> b = sat n \<phi>"
+  shows "(t, b) = (\<tau> \<sigma> n, sat \<phi> n)"
   using vydra_wf[OF order.refl] reaches_sub[OF assms(1)] assms(2,3)
   by (auto simp: ru'_def su'_def dest: wf_vydraD)
 
-lemma vydra_complete:
-  assumes prefix: "reaches run_event init n e" "run_event e = Some (e', (t, X))"
-    and prefix': "reaches run_event e n' f" "run_event f = Some (f', (t', X'))"
-    and reach: "\<not>t' \<le> t + FR_fmla \<phi>" "bounded_future_fmla \<phi>"
-  shows "\<exists>v v'. reaches (ru' \<phi>) (su' \<phi>) n v \<and> ru' \<phi> v = Some (v', (\<tau> \<sigma> n, sat n \<phi>))"
+lemma vydra_aux_complete:
+  assumes prefix: "reaches run_hd init_hd n e" "run_hd e = Some (e', (t, X))"
+    and prefix': "reaches run_hd e n' f" "run_hd f = Some (f', (t', X'))"
+    and reach: "bounded_future_fmla \<phi>" "\<not>t' \<le> t + FR_fmla \<phi>"
+  shows "\<exists>v v'. reaches (ru' \<phi>) (su' \<phi>) n v \<and> ru' \<phi> v = Some (v', (\<tau> \<sigma> n, sat \<phi> n))"
 proof -
   obtain ws v where ws_def: "reach_sub (ru' \<phi>) (su' \<phi>) ws v" "length ws = n" "ru' \<phi> v \<noteq> None"
-    using vydra_complete_sub[OF _ assms(2) _ assms(4) refl reach] reaches_sub[OF assms(1)]
+    using vydra_complete_sub[OF _ assms(2) _ assms(4) refl reach(2,1)] reaches_sub[OF assms(1)]
       reaches_sub[OF assms(3)]
     unfolding ru'_def su'_def
     by blast
@@ -1634,22 +1645,67 @@ proof -
     by auto
   show ?thesis
     using reach_sub_n[OF ws_def(1)] ws_def(2) tb_def
-      wf_vydraD[OF vydra_wf[OF order.refl ws_def(1)[unfolded ru'_def su'_def] reach(2)]]
+      wf_vydraD[OF vydra_wf[OF order.refl ws_def(1)[unfolded ru'_def su'_def] reach(1)]]
     by (auto simp: ru'_def)
 qed
 
-thm vydra_sound
-thm vydra_complete
+lemma map_option_apfst_idle: "map_option (apfst snd) (map_option (apfst (Pair n)) x) = x"
+  by (cases x) auto
+
+lemma vydra_sound:
+  assumes "reaches (run_vydra run_hd) (init_vydra init_hd run_hd \<phi>) n v" "run_vydra run_hd v = Some (v', (t, b))" "bounded_future_fmla \<phi>"
+  shows "(t, b) = (\<tau> \<sigma> n, sat \<phi> n)"
+proof -
+  have fst_v: "fst v = msize_fmla \<phi>"
+    by (rule reaches_invar[OF assms(1)]) (auto simp: init_vydra_def run_vydra_def)
+  have "reaches (ru' \<phi>) (su' \<phi>) n (snd v)"
+    using reaches_cong[OF assms(1), where ?P="\<lambda>(m, w). m = msize_fmla \<phi>" and ?g=snd]
+    by (auto simp: init_vydra_def run_vydra_def ru'_def su'_def map_option_apfst_idle simp del: sub.simps)
+  then show ?thesis
+    using vydra_aux_sound[OF _ _ assms(3)] assms(2) fst_v
+    by (auto simp: run_vydra_def ru'_def split: prod.splits)
+qed
+
+lemma vydra_complete:
+  assumes prefix: "reaches run_hd init_hd n s" "run_hd s = Some (ss, (t, X))"
+    and prefix': "reaches run_hd s n' s'" "run_hd s' = Some (ss', (t', X'))"
+    and reach: "bounded_future_fmla \<phi>" "\<not>t' \<le> t + FR_fmla \<phi>"
+  shows "\<exists>v v'. reaches (run_vydra run_hd) (init_vydra init_hd run_hd \<phi>) n v \<and> run_vydra run_hd v = Some (v', (\<tau> \<sigma> n, sat \<phi> n))"
+proof -
+  obtain v v' where wits: "reaches (ru' \<phi>) (su' \<phi>) n v" "ru' \<phi> v = Some (v', \<tau> \<sigma> n, sat \<phi> n)"
+    using vydra_aux_complete[OF assms]
+    by auto
+  have reach: "reaches (run_vydra run_hd) (init_vydra init_hd run_hd \<phi>) n (msize_fmla \<phi>, v)"
+    using reaches_cong[OF wits(1), where ?P="\<lambda>x. True" and ?f'="run_vydra run_hd" and ?g="Pair (msize_fmla \<phi>)"]
+    by (auto simp: init_vydra_def run_vydra_def ru'_def su'_def simp del: sub.simps)
+  show ?thesis
+    apply (rule exI[of _ "(msize_fmla \<phi>, v)"])
+    apply (rule exI[of _ "(msize_fmla \<phi>, v')"])
+    apply (auto simp: run_vydra_def wits(2)[unfolded ru'_def] intro: reach)
+    done
+qed
 
 end
 
 context MDL
 begin
 
-lemma reach_elem: "reach_sub (\<lambda>i. Some (Suc i, \<tau> \<sigma> i, \<Gamma> \<sigma> i)) s es s' \<Longrightarrow> s = 0 \<Longrightarrow> s' = length es"
-  by (induction s es s' rule: reach_sub_rev_induct) auto
+lemma reach_elem:
+  assumes "reaches (\<lambda>i. Some (Suc i, (\<tau> \<sigma> i, \<Gamma> \<sigma> i))) s n s'" "s = 0"
+  shows "s' = n"
+proof -
+  obtain vs where vs_def: "reach_sub (\<lambda>i. Some (Suc i, (\<tau> \<sigma> i, \<Gamma> \<sigma> i))) s vs s'" "length vs = n"
+    using reaches_sub[OF assms(1)]
+    by auto
+  have "s' = length vs"
+    using vs_def(1) assms(2)
+    by (induction s vs s' rule: reach_sub_rev_induct) auto
+  then show ?thesis
+    using vs_def(2)
+    by auto
+qed
 
-interpretation VYDRA_MDL \<sigma> 0 "\<lambda>i. Some (Suc i, (\<tau> \<sigma> i, \<Gamma> \<sigma> i))"
+interpretation default_vydra: VYDRA_MDL \<sigma> 0 "\<lambda>i. Some (Suc i, (\<tau> \<sigma> i, \<Gamma> \<sigma> i))"
   using reach_elem
   by unfold_locales auto
 

@@ -1,0 +1,1 @@
+NOT ((ONCE [0,60] error) AND auth)

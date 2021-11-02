@@ -529,6 +529,36 @@ public:
     }
 };
 
+class PrintMonpolyRegexVisitor : public RegexVisitor {
+    FILE *out;
+
+public:
+    PrintMonpolyRegexVisitor(FILE *out) : out(out) {}
+    void visit(TestRegex *r);
+    void visit(WildCardRegex *r) {
+        fprintf(out, ".");
+    }
+    void visit(OrRegex *r) {
+        fprintf(out, "(");
+        r->left->accept(*this);
+        fprintf(out, " + ");
+        r->right->accept(*this);
+        fprintf(out, ")");
+    }
+    void visit(ConcatRegex *r) {
+        fprintf(out, "(");
+        r->left->accept(*this);
+        fprintf(out, " ");
+        r->right->accept(*this);
+        fprintf(out, ")");
+    }
+    void visit(StarRegex *r) {
+        fprintf(out, "(");
+        r->body->accept(*this);
+        fprintf(out, "*)");
+    }
+};
+
 class PrintConsumeRegexVisitor : public ConsumeRegexVisitor {
     FILE *out;
 
@@ -679,28 +709,46 @@ public:
     }
 };
 
-class PrintMonpolyVisitor : public FormulaVisitor {
+class PrintMonpolyFormulaVisitor : public FormulaVisitor {
     FILE *out;
 
 public:
-    PrintMonpolyVisitor(FILE *out) : out(out) {}
+    PrintMonpolyFormulaVisitor(FILE *out) : out(out) {}
     void visit(BwFormula *f) {
-        CHECK(0);
+        fprintf(out, "(");
+        if (f->to < MAX_TIMESTAMP) fprintf(out, "◁ [%d,%d] ", f->from, f->to);
+        else fprintf(out, "◁ [%d,*) ", f->from);
+        PrintMonpolyRegexVisitor r(out);
+        f->r->accept(r);
+        fprintf(out, ")");
     }
     void visit(BwConsumeFormula *f) {
         CHECK(0);
     }
     void visit(BwOneFormula *f) {
-        CHECK(0);
+        fprintf(out, "(");
+        fprintf(out, "◁ %d ", f->delta);
+        PrintMonpolyRegexVisitor r(out);
+        f->r->accept(r);
+        fprintf(out, ")");
     }
     void visit(FwFormula *f) {
-        CHECK(0);
+        fprintf(out, "(");
+        if (f->to < MAX_TIMESTAMP) fprintf(out, "▷ [%d,%d] ", f->from, f->to);
+        else fprintf(out, "▷ [%d,*) ", f->from);
+        PrintMonpolyRegexVisitor r(out);
+        f->r->accept(r);
+        fprintf(out, ")");
     }
     void visit(FwConsumeFormula *f) {
         CHECK(0);
     }
     void visit(FwOneFormula *f) {
-        CHECK(0);
+        fprintf(out, "(");
+        fprintf(out, "▷ %d ", f->delta);
+        PrintMonpolyRegexVisitor r(out);
+        f->r->accept(r);
+        fprintf(out, ")");
     }
     void visit(BoolFormula *f) {
         fprintf(out, "%s", f->b ? "TRUE" : "FALSE");

@@ -83,6 +83,13 @@ void PrintHydraRegexVisitor::visit(TestRegex *r) {
     fprintf(out, "?)");
 }
 
+void PrintMonpolyRegexVisitor::visit(TestRegex *r) {
+    fprintf(out, "(");
+    PrintMonpolyFormulaVisitor f(out);
+    r->f->accept(f);
+    fprintf(out, "?)");
+}
+
 void PrintConsumeRegexVisitor::visit(AtomicConsumeRegex *r) {
     PrintHydraFormulaVisitor f(out);
     r->f->accept(f);
@@ -98,8 +105,8 @@ void print_fmla_hydra(const char *fname, Formula *fmla)
 
 void print_fmla_monpoly(const char *fname, Formula *fmla)
 {
-    FILE *out = open_file_type(fname, ".mfotl", "w");
-    PrintMonpolyVisitor f(out);
+    FILE *out = open_file_type(fname, ".mfodl", "w");
+    PrintMonpolyFormulaVisitor f(out);
     fmla->accept(f);
     fclose(out);
 }

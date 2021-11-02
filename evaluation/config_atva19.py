@@ -6,7 +6,7 @@ tools = {
         "exec": "/home/hydra/hydra", "fmla": ".mdl", "fmla_flag": "", "log": ".log", "log_flag": "", "flags": "", "pre_flags": "", "script": False
     },
     "monpoly": {
-        "exec": "/home/hydra/monpoly/monpoly", "fmla": ".mfotl", "fmla_flag": "-formula", "log": ".mlog", "log_flag": "-log", "flags": "-sig fmlas/mfotl.sig", "pre_flags": "", "script": False
+        "exec": "/home/hydra/monpoly/monpoly", "fmla": ".mfodl", "fmla_flag": "-formula", "log": ".mlog", "log_flag": "-log", "flags": "-sig fmlas/vmon.sig", "pre_flags": "", "script": False
     },
 }
 
@@ -31,10 +31,10 @@ exps = {
 exp_config = {"reps": 2, "timeout": "10", "aggr": "mean"}
 
 plot_config_exp = {
-    "exp_scaling": {"case": "Average-Case", "short": "IO", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Scaling Factor", "xrange": "[0:11]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xtics": None},
-    "exp_size": {"case": "Average-Case", "short": "SZ", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Formula Size", "xrange": "[0:52]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xtics": None},
-    "exp_trace": {"case": "Average-Case", "short": "TR", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Trace Length [x1000]", "xrange": "[0:220]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xtics": None},
-    "exp_mtl_exp": {"case": "Worst-Case", "short": "WC", "title": True, "graph_type": "points", "size": "4.5,3", "xlabel": "Parameter (n)", "xrange": "[0:12]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xtics": None},
+    "exp_scaling": {"case": "Average-Case", "short": "IO", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Scaling Factor", "xrange": "[0:11]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xscale": None},
+    "exp_size": {"case": "Average-Case", "short": "SZ", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Formula Size", "xrange": "[0:52]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xscale": None},
+    "exp_trace": {"case": "Average-Case", "short": "TR", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Trace Length [x1000]", "xrange": "[0:220]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xscale": None},
+    "exp_mtl_exp": {"case": "Worst-Case", "short": "WC", "title": True, "graph_type": "points", "size": "5,3", "xlabel": "Parameter (n)", "xrange": "[0:12]", "yrange": {"time": "[0:8]", "space": "[0:30]"}, "log": {"x": None, "y": None}, "xscale": None},
 }
 
 plot_config_misc = {

@@ -25,19 +25,17 @@ module VYDRA : sig
     Until of ('a, 'b) formula * 'b i * ('a, 'b) formula |
     MatchP of 'b i * ('a, 'b) regex | MatchF of 'b i * ('a, 'b) regex
   type enat = Enat of nat | Infinity_enat
-  type ('a, 'b, 'c) vydra
+  type ('a, 'b, 'c) vydra_aux
   type ('a, 'b, 'c) vydra_rec
-  val mk_event : string list -> string set
-  val run_vydra :
+  val mk_db : string list -> string set
+  val interval_enat : enat -> enat -> enat i
+  val run_vydra_string_enat :
     ('a -> ('a * (enat * string set)) option) ->
-      nat ->
-        (string, enat, 'a) vydra ->
-          ((string, enat, 'a) vydra * (enat * bool)) option
-  val sub_vydra :
+      nat * (string, enat, 'a) vydra_aux ->
+        ((nat * (string, enat, 'a) vydra_aux) * (enat * bool)) option
+  val init_vydra_string_enat :
     'a -> ('a -> ('a * (enat * string set)) option) ->
-            nat -> (string, enat) formula -> (string, enat, 'a) vydra
-  val enat_interval : enat -> enat -> enat i
-  val msize_fmla_vydra : (string, enat) formula -> nat
+            (string, enat) formula -> nat * (string, enat, 'a) vydra_aux
 end = struct
 
 type 'a countable = unit;;
@@ -1914,6 +1912,9 @@ let rec mapping_impl_prod _A _B =
 
 type ('b, 'a) alist = Alist of ('b * 'a) list;;
 
+type transition = Cond_eps of nat * nat | Wild_trans of nat |
+  Split_trans of nat * nat;;
+
 type ('a, 'b) mapping = Assoc_List_Mapping of ('a, 'b) alist |
   RBT_Mapping of ('a, 'b) mapping_rbt | Mapping of ('a -> 'b option);;
 
@@ -1922,22 +1923,21 @@ type ('a, 'b, 'c, 'd, 'e, 'f) window_ext =
     (('b * 'a), 'b) mapping * (('b * 'a), bool) mapping * nat * 'd * 'e * nat *
       'd * 'e * ('b * ('b * ('c * nat) option)) list * ('b * 'c) list * 'f;;
 
-type transition = Cond_eps of nat * nat | Wild_trans of nat |
-  Split_trans of nat * nat;;
-
-type ('a, 'b, 'c) vydra = VYDRA of (('a, 'b, 'c) vydra_rec * ('b * bool)) option
+type ('a, 'b, 'c) vydra_aux =
+  VYDRA of (('a, 'b, 'c) vydra_rec * ('b * bool)) option
 and ('a, 'b, 'c) vydra_rec = VYDRA_Bool of bool * 'c | VYDRA_Atom of 'a * 'c |
-  VYDRA_Neg of ('a, 'b, 'c) vydra |
-  VYDRA_Bin of (bool -> bool -> bool) * ('a, 'b, 'c) vydra * ('a, 'b, 'c) vydra
+  VYDRA_Neg of ('a, 'b, 'c) vydra_aux |
+  VYDRA_Bin of
+    (bool -> bool -> bool) * ('a, 'b, 'c) vydra_aux * ('a, 'b, 'c) vydra_aux
   | VYDRA_MatchP of
       'b i * transition array * nat *
         ((bool array), nat set, 'b, (('c * 'b) option),
-          (('a, 'b, 'c) vydra list), unit)
+          (('a, 'b, 'c) vydra_aux list), unit)
           window_ext
   | VYDRA_MatchF of
       'b i * transition array * nat *
         ((bool array), nat set, 'b, (('c * 'b) option),
-          (('a, 'b, 'c) vydra list), unit)
+          (('a, 'b, 'c) vydra_aux list), unit)
           window_ext;;
 
 type ('a, 'b, 'c, 'd, 'e, 'f) args_ext =
@@ -2142,8 +2142,8 @@ let rec map_of _A
     | [], k -> None;;
 
 let rec t0 _B
-  init run_event =
-    (match run_event init with None -> None | Some (e, (t, _)) -> Some (e, t));;
+  init_hd run_hd =
+    (match run_hd init_hd with None -> None | Some (e, (t, _)) -> Some (e, t));;
 
 let rec comp_fun_idem_apply (Abs_comp_fun_idem x) = x;;
 
@@ -2804,9 +2804,9 @@ let rec read_t _B = function None -> None
                     | Some (e, t) -> Some t;;
 
 let rec run_t _B
-  run_event x1 = match run_event, x1 with run_event, None -> None
-    | run_event, Some (e, t) ->
-        (match run_event e with None -> Some (None, t)
+  run_hd x1 = match run_hd, x1 with run_hd, None -> None
+    | run_hd, Some (e, t) ->
+        (match run_hd e with None -> Some (None, t)
           | Some (ea, (ta, _)) -> Some (Some (ea, ta), t));;
 
 let rec read _B = function VYDRA None -> None
@@ -2817,33 +2817,33 @@ let rec accept
     member (ceq_nat, ccompare_nat) len (eps_closure_set transs len r bs);;
 
 let rec run _B (_C1, _C2)
-  run_event n x2 = match run_event, n, x2 with run_event, n, VYDRA None -> None
-    | run_event, n, VYDRA (Some (v, x)) ->
-        Some (VYDRA (run_rec _B (_C1, _C2) run_event n v), x)
+  run_hd n x2 = match run_hd, n, x2 with run_hd, n, VYDRA None -> None
+    | run_hd, n, VYDRA (Some (v, x)) ->
+        Some (VYDRA (run_rec _B (_C1, _C2) run_hd n v), x)
 and run_rec _B (_C1, _C2)
-  run_event n x2 = match run_event, n, x2 with
-    run_event, n, VYDRA_Bool (b, e) ->
-      (match run_event e with None -> None
+  run_hd n x2 = match run_hd, n, x2 with
+    run_hd, n, VYDRA_Bool (b, e) ->
+      (match run_hd e with None -> None
         | Some (ea, (t, _)) -> Some (VYDRA_Bool (b, ea), (t, b)))
-    | run_event, n, VYDRA_Atom (a, e) ->
-        (match run_event e with None -> None
+    | run_hd, n, VYDRA_Atom (a, e) ->
+        (match run_hd e with None -> None
           | Some (ea, (t, x)) ->
             Some (VYDRA_Atom (a, ea), (t, member (_C1, _C2) a x)))
-    | run_event, n, VYDRA_Neg v ->
+    | run_hd, n, VYDRA_Neg v ->
         (if equal_nata n zero_nat then None
-          else (match run _B (_C1, _C2) run_event (minus_nat n one_nat) v
+          else (match run _B (_C1, _C2) run_hd (minus_nat n one_nat) v
                  with None -> None
                  | Some (va, (t, b)) -> Some (VYDRA_Neg va, (t, not b))))
-    | run_event, n, VYDRA_Bin (v, va, vb) ->
+    | run_hd, n, VYDRA_Bin (v, va, vb) ->
         (if equal_nata n zero_nat then None
-          else (match run _B (_C1, _C2) run_event (minus_nat n one_nat) va
+          else (match run _B (_C1, _C2) run_hd (minus_nat n one_nat) va
                  with None -> None
                  | Some (vl, (t, bl)) ->
-                   (match run _B (_C1, _C2) run_event (minus_nat n one_nat) vb
+                   (match run _B (_C1, _C2) run_hd (minus_nat n one_nat) vb
                      with None -> None
                      | Some (vr, (_, br)) ->
                        Some (VYDRA_Bin (v, vl, vr), (t, v bl br)))))
-    | run_event, n, VYDRA_MatchP (v, va, vb, vc) ->
+    | run_hd, n, VYDRA_MatchP (v, va, vb, vc) ->
         (if equal_nata n zero_nat then None
           else (match
                  eval_matchP _B
@@ -2852,15 +2852,14 @@ and run_rec _B (_C1, _C2)
                         (set_empty (ceq_nat, ccompare_nat)
                           (of_phantom set_impl_nata)),
                        (delta va vb, accept va vb))
-                     (run_t _B run_event, read_t _B)
-                     (run_subs
-                        (run _B (_C1, _C2) run_event (minus_nat n one_nat)),
+                     (run_t _B run_hd, read_t _B)
+                     (run_subs (run _B (_C1, _C2) run_hd (minus_nat n one_nat)),
                        read_subs (read _B)))
                    v vc
                  with None -> None
                  | Some ((t, b), w) ->
                    Some (VYDRA_MatchP (v, va, vb, w), (t, b))))
-    | run_event, n, VYDRA_MatchF (v, va, vb, vc) ->
+    | run_hd, n, VYDRA_MatchF (v, va, vb, vc) ->
         (if equal_nata n zero_nat then None
           else (match
                  eval_matchF _B
@@ -2869,9 +2868,8 @@ and run_rec _B (_C1, _C2)
                         (set_empty (ceq_nat, ccompare_nat)
                           (of_phantom set_impl_nata)),
                        (delta va vb, accept va vb))
-                     (run_t _B run_event, read_t _B)
-                     (run_subs
-                        (run _B (_C1, _C2) run_event (minus_nat n one_nat)),
+                     (run_t _B run_hd, read_t _B)
+                     (run_subs (run _B (_C1, _C2) run_hd (minus_nat n one_nat)),
                        read_subs (read _B)))
                    v vc
                  with None -> None
@@ -2963,38 +2961,38 @@ let rec possiblyP _B phi i r = MatchP (i, Times (Test phi, r));;
 let rec possiblyF _B r i phi = MatchF (i, Times (r, Test phi));;
 
 let rec suba (_B1, _B2) (_C1, _C2, _C3)
-  init run_event n phi =
-    VYDRA (run_rec _B2 (_C1, _C2) run_event n
-            (sub_rec (_B1, _B2) (_C1, _C2, _C3) init run_event n phi))
+  init_hd run_hd n phi =
+    VYDRA (run_rec _B2 (_C1, _C2) run_hd n
+            (sub_rec (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd n phi))
 and sub_rec (_B1, _B2) (_C1, _C2, _C3)
-  init run_event n x3 = match init, run_event, n, x3 with
-    init, run_event, n, Bool b -> VYDRA_Bool (b, init)
-    | init, run_event, n, Atom a -> VYDRA_Atom (a, init)
-    | init, run_event, n, Prev (i, phi) ->
-        sub_rec (_B1, _B2) (_C1, _C2, _C3) init run_event n
+  init_hd run_hd n x3 = match init_hd, run_hd, n, x3 with
+    init_hd, run_hd, n, Bool b -> VYDRA_Bool (b, init_hd)
+    | init_hd, run_hd, n, Atom a -> VYDRA_Atom (a, init_hd)
+    | init_hd, run_hd, n, Prev (i, phi) ->
+        sub_rec (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd n
           (possiblyP _B2 phi i Wild)
-    | init, run_event, n, Next (i, phi) ->
-        sub_rec (_B1, _B2) (_C1, _C2, _C3) init run_event n
+    | init_hd, run_hd, n, Next (i, phi) ->
+        sub_rec (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd n
           (possiblyF _B2 Wild i phi)
-    | init, run_event, n, Since (phi, i, psi) ->
-        sub_rec (_B1, _B2) (_C1, _C2, _C3) init run_event n
+    | init_hd, run_hd, n, Since (phi, i, psi) ->
+        sub_rec (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd n
           (possiblyP _B2 psi i (Star (baseP _B2 phi)))
-    | init, run_event, n, Until (phi, i, psi) ->
-        sub_rec (_B1, _B2) (_C1, _C2, _C3) init run_event n
+    | init_hd, run_hd, n, Until (phi, i, psi) ->
+        sub_rec (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd n
           (possiblyF _B2 (Star (baseF _B2 phi)) i psi)
-    | init, run_event, n, Neg v ->
+    | init_hd, run_hd, n, Neg v ->
         (if equal_nata n zero_nat then failwith "undefined"
           else VYDRA_Neg
-                 (suba (_B1, _B2) (_C1, _C2, _C3) init run_event
+                 (suba (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd
                    (minus_nat n one_nat) v))
-    | init, run_event, n, Bin (v, va, vb) ->
+    | init_hd, run_hd, n, Bin (v, va, vb) ->
         (if equal_nata n zero_nat then failwith "undefined"
           else VYDRA_Bin
-                 (v, suba (_B1, _B2) (_C1, _C2, _C3) init run_event
+                 (v, suba (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd
                        (minus_nat n one_nat) va,
-                   suba (_B1, _B2) (_C1, _C2, _C3) init run_event
+                   suba (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd
                      (minus_nat n one_nat) vb))
-    | init, run_event, n, MatchP (v, va) ->
+    | init_hd, run_hd, n, MatchP (v, va) ->
         (if equal_nata n zero_nat then failwith "undefined"
           else (let qf = state_cnt _B2 va in
                 let transs =
@@ -3014,16 +3012,15 @@ and sub_rec (_B1, _B2) (_C1, _C2, _C3)
                             (set_empty (ceq_nat, ccompare_nat)
                               (of_phantom set_impl_nata)),
                            (delta transs qf, accept transs qf))
-                         (run_t _B2 run_event, read_t _B2)
+                         (run_t _B2 run_hd, read_t _B2)
                          (run_subs
-                            (run _B2 (_C1, _C2) run_event
-                              (minus_nat n one_nat)),
+                            (run _B2 (_C1, _C2) run_hd (minus_nat n one_nat)),
                            read_subs (read _B2)))
-                       (t0 _B2 init run_event)
-                       (map (suba (_B1, _B2) (_C1, _C2, _C3) init run_event
+                       (t0 _B2 init_hd run_hd)
+                       (map (suba (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd
                               (minus_nat n one_nat))
                          (collect_subfmlas _C3 (_B1, _B2) va [])))))
-    | init, run_event, n, MatchF (v, va) ->
+    | init_hd, run_hd, n, MatchF (v, va) ->
         (if equal_nata n zero_nat then failwith "undefined"
           else (let qf = state_cnt _B2 va in
                 let transs =
@@ -3043,13 +3040,12 @@ and sub_rec (_B1, _B2) (_C1, _C2, _C3)
                             (set_empty (ceq_nat, ccompare_nat)
                               (of_phantom set_impl_nata)),
                            (delta transs qf, accept transs qf))
-                         (run_t _B2 run_event, read_t _B2)
+                         (run_t _B2 run_hd, read_t _B2)
                          (run_subs
-                            (run _B2 (_C1, _C2) run_event
-                              (minus_nat n one_nat)),
+                            (run _B2 (_C1, _C2) run_hd (minus_nat n one_nat)),
                            read_subs (read _B2)))
-                       (t0 _B2 init run_event)
-                       (map (suba (_B1, _B2) (_C1, _C2, _C3) init run_event
+                       (t0 _B2 init_hd run_hd)
+                       (map (suba (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd
                               (minus_nat n one_nat))
                          (collect_subfmlas _C3 (_B1, _B2) va [])))));;
 
@@ -3062,6 +3058,11 @@ let rec interval _A
                       _A.bounded_semilattice_sup_bot_timestamp.order_bot_bounded_semilattice_sup_bot.order_order_bot.preorder_order.ord_preorder
                       l r
                 then (l, r) else rep_I _A (failwith "undefined"));;
+
+let rec run_vydra _B (_C1, _C2)
+  run_hd v =
+    (let (n, w) = v in
+      map_option (apfst (fun a -> (n, a))) (run _B (_C1, _C2) run_hd n w));;
 
 let rec msize_fmla _B
   = function Bool b -> zero_nat
@@ -3084,16 +3085,20 @@ and msize_regex _B
     | Times (r, s) -> max ord_nat (msize_regex _B r) (msize_regex _B s)
     | Star r -> msize_regex _B r;;
 
-let rec mk_event x = set (ceq_literal, ccompare_literal, set_impl_literal) x;;
+let rec init_vydra (_B1, _B2) (_C1, _C2, _C3)
+  init_hd run_hd phi =
+    (msize_fmla _B2 phi,
+      suba (_B1, _B2) (_C1, _C2, _C3) init_hd run_hd (msize_fmla _B2 phi) phi);;
 
-let rec run_vydra x = run timestamp_enat (ceq_literal, ccompare_literal) x;;
+let rec mk_db x = set (ceq_literal, ccompare_literal, set_impl_literal) x;;
 
-let rec sub_vydra
-  x = suba (equal_enat, timestamp_enat)
+let rec interval_enat x = interval timestamp_enat x;;
+
+let rec run_vydra_string_enat
+  x = run_vydra timestamp_enat (ceq_literal, ccompare_literal) x;;
+
+let rec init_vydra_string_enat
+  x = init_vydra (equal_enat, timestamp_enat)
         (ceq_literal, ccompare_literal, equal_literal) x;;
-
-let rec enat_interval x = interval timestamp_enat x;;
-
-let rec msize_fmla_vydra x = msize_fmla timestamp_enat x;;
 
 end;; (*struct VYDRA*)

@@ -68,7 +68,7 @@ static int check_alphanum(char c) {
     return check_alpha(c) || check_num(c);
 }
 
-CAMLprim value caml_run_event(value ml_handle) {
+CAMLprim value caml_run(value ml_handle) {
     CAMLparam1(ml_handle);
     CAMLlocal4(ret, cli, cons, aux);
     ret = caml_alloc(3, 0);

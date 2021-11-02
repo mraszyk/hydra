@@ -29,32 +29,30 @@ WS          [ \r\n\t]*
 %%
  
 {WS}                { continue; }
-INFINITY            { return TOKEN_INFINITY; }
-true                { return TOKEN_TRUE; }
 false               { return TOKEN_FALSE; }
+true                { return TOKEN_TRUE; }
 NOT                 { return TOKEN_NEG; }
 AND                 { return TOKEN_CONJ; }
 OR                  { return TOKEN_DISJ; }
-IMPLIES             { return TOKEN_IMP; }
-EQUIV               { return TOKEN_IFF; }
-SINCE               { return TOKEN_SINCE; }
-UNTIL               { return TOKEN_UNTIL; }
 PREV                { return TOKEN_PREV; }
 NEXT                { return TOKEN_NEXT; }
-◁r                  { return TOKEN_MATCH_CONSUME_PAST; }
-◁                   { return TOKEN_MATCH_PAST; }
-▷                   { return TOKEN_MATCH_FUTURE; }
+SINCE               { return TOKEN_SINCE; }
+UNTIL               { return TOKEN_UNTIL; }
 ONCE                { return TOKEN_ONCE; }
 EVENTUALLY          { return TOKEN_EVENTUALLY; }
 HISTORICALLY        { return TOKEN_HISTORICALLY; }
 ALWAYS              { return TOKEN_ALWAYS; }
-{LPAREN}            { return TOKEN_LPAREN; }
-{RPAREN}            { return TOKEN_RPAREN; }
+◁                   { return TOKEN_MATCH_PAST; }
+▷                   { return TOKEN_MATCH_FUTURE; }
+◁r                  { return TOKEN_MATCH_CONSUME_PAST; }
+▷r                  { return TOKEN_MATCH_CONSUME_FUTURE; }
 \?                  { return TOKEN_QUESTION; }
 \.                  { return TOKEN_DOT; }
 \+                  { return TOKEN_UNION; }
-\|                  { return TOKEN_CONSUME_UNION; }
 \*                  { return TOKEN_STAR; }
+INFINITY            { return TOKEN_INFINITY; }
+{LPAREN}            { return TOKEN_LPAREN; }
+{RPAREN}            { return TOKEN_RPAREN; }
 
 {ALPHA}{ALPHANUMS}{LPAREN}{RPAREN}  { yylval->name = new char[strlen(yytext) + 10]; strcpy(yylval->name, yytext); return TOKEN_PRED; }
 {ALPHA}{ALPHANUMS}  { yylval->name = new char[strlen(yytext) + 10]; strcpy(yylval->name, yytext); return TOKEN_PRED; }

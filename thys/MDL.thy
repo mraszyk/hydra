@@ -6,18 +6,18 @@ section \<open>Formulas and Satisfiability\<close>
 
 declare [[typedef_overloaded]]
 
-datatype ('a, 'b :: timestamp) formula = Bool bool | Atom 'a | Neg "('a, 'b) formula" |
-  Bin "bool \<Rightarrow> bool \<Rightarrow> bool" "('a, 'b) formula" "('a, 'b) formula" |
-  Prev "'b \<I>" "('a, 'b) formula" | Next "'b \<I>" "('a, 'b) formula" |
-  Since "('a, 'b) formula" "'b \<I>" "('a, 'b) formula" |
-  Until "('a, 'b) formula" "'b \<I>" "('a, 'b) formula" |
-  MatchP "'b \<I>" "('a, 'b) regex" | MatchF "'b \<I>" "('a, 'b) regex"
-  and ('a, 'b) regex = Wild | Test "('a, 'b) formula" |
-  Plus "('a, 'b) regex" "('a, 'b) regex" | Times "('a, 'b) regex" "('a, 'b) regex" |
-  Star "('a, 'b) regex"
+datatype ('a, 't :: timestamp) formula = Bool bool | Atom 'a | Neg "('a, 't) formula" |
+  Bin "bool \<Rightarrow> bool \<Rightarrow> bool" "('a, 't) formula" "('a, 't) formula" |
+  Prev "'t \<I>" "('a, 't) formula" | Next "'t \<I>" "('a, 't) formula" |
+  Since "('a, 't) formula" "'t \<I>" "('a, 't) formula" |
+  Until "('a, 't) formula" "'t \<I>" "('a, 't) formula" |
+  MatchP "'t \<I>" "('a, 't) regex" | MatchF "'t \<I>" "('a, 't) regex"
+  and ('a, 't) regex = Wild | Test "('a, 't) formula" |
+  Plus "('a, 't) regex" "('a, 't) regex" | Times "('a, 't) regex" "('a, 't) regex" |
+  Star "('a, 't) regex"
 
-fun FR_fmla :: "('a, 'b :: timestamp) formula \<Rightarrow> 'b"
-  and FR_regex :: "('a, 'b) regex \<Rightarrow> 'b" where
+fun FR_fmla :: "('a, 't :: timestamp) formula \<Rightarrow> 't"
+  and FR_regex :: "('a, 't) regex \<Rightarrow> 't" where
   "FR_fmla (Bool b) = 0"
 | "FR_fmla (Atom a) = 0"
 | "FR_fmla (Neg phi) = FR_fmla phi"
@@ -35,8 +35,8 @@ fun FR_fmla :: "('a, 'b :: timestamp) formula \<Rightarrow> 'b"
 | "FR_regex (Star r) = FR_regex r"
 
 lemma FR_pos:
-  fixes \<phi> :: "('a, 'b :: timestamp) formula"
-    and r :: "('a, 'b) regex"
+  fixes \<phi> :: "('a, 't :: timestamp) formula"
+    and r :: "('a, 't) regex"
   shows "0 \<le> FR_fmla \<phi>" "0 \<le> FR_regex r"
   using right_I_add_mono' order.trans
    apply (induction rule: FR_fmla_FR_regex.induct)
@@ -48,8 +48,8 @@ lemma FR_pos:
   using sup.coboundedI2 apply blast+
   done
 
-fun bounded_future_fmla :: "('a, 'b :: timestamp) formula \<Rightarrow> bool"
-  and bounded_future_regex :: "('a, 'b) regex \<Rightarrow> bool" where
+fun bounded_future_fmla :: "('a, 't :: timestamp) formula \<Rightarrow> bool"
+  and bounded_future_regex :: "('a, 't) regex \<Rightarrow> bool" where
   "bounded_future_fmla (Bool b) \<longleftrightarrow> True"
 | "bounded_future_fmla (Atom a) \<longleftrightarrow> True"
 | "bounded_future_fmla (Neg phi) \<longleftrightarrow> bounded_future_fmla phi"
@@ -81,35 +81,35 @@ definition "Eventually I \<phi> \<equiv> Until (Bool True) I \<phi>"
 definition "Always I \<phi> \<equiv> Neg (Eventually I (Neg \<phi>))"
 
 locale MDL =
-  fixes \<sigma> :: "('a, 'b :: timestamp) trace"
+  fixes \<sigma> :: "('a, 't :: timestamp) trace"
 begin
 
-fun sat :: "nat \<Rightarrow> ('a, 'b) formula \<Rightarrow> bool"
-  and match :: "('a, 'b) regex \<Rightarrow> (nat \<times> nat) set" where
-  "sat i (Bool b) = b"
-| "sat i (Atom a) = (a \<in> \<Gamma> \<sigma> i)"
-| "sat i (Neg \<phi>) = (\<not> sat i \<phi>)"
-| "sat i (Bin f \<phi> \<psi>) = (f (sat i \<phi>) (sat i \<psi>))"
-| "sat i (Prev I \<phi>) = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I \<and> sat j \<phi>)"
-| "sat i (Next I \<phi>) = (mem (\<tau> \<sigma> i) (\<tau> \<sigma> (Suc i)) I \<and> sat (Suc i) \<phi>)"
-| "sat i (Since \<phi> I \<psi>) = (\<exists>j\<le>i. mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I \<and> sat j \<psi> \<and> (\<forall>k \<in> {j<..i}. sat k \<phi>))"
-| "sat i (Until \<phi> I \<psi>) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I \<and> sat j \<psi> \<and> (\<forall>k \<in> {i..<j}. sat k \<phi>))"
-| "sat i (MatchP I r) = (\<exists>j\<le>i. mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I \<and> (j, i) \<in> match r)"
-| "sat i (MatchF I r) = (\<exists>j\<ge>i. mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I \<and> (i, j) \<in> match r)"
+fun sat :: "('a, 't) formula \<Rightarrow> nat \<Rightarrow> bool"
+  and match :: "('a, 't) regex \<Rightarrow> (nat \<times> nat) set" where
+  "sat (Bool b) i = b"
+| "sat (Atom a) i = (a \<in> \<Gamma> \<sigma> i)"
+| "sat (Neg \<phi>) i = (\<not> sat \<phi> i)"
+| "sat (Bin f \<phi> \<psi>) i = (f (sat \<phi> i) (sat \<psi> i))"
+| "sat (Prev I \<phi>) i = (case i of 0 \<Rightarrow> False | Suc j \<Rightarrow> mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I \<and> sat \<phi> j)"
+| "sat (Next I \<phi>) i = (mem (\<tau> \<sigma> i) (\<tau> \<sigma> (Suc i)) I \<and> sat \<phi> (Suc i))"
+| "sat (Since \<phi> I \<psi>) i = (\<exists>j\<le>i. mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I \<and> sat \<psi> j \<and> (\<forall>k \<in> {j<..i}. sat \<phi> k))"
+| "sat (Until \<phi> I \<psi>) i = (\<exists>j\<ge>i. mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I \<and> sat \<psi> j \<and> (\<forall>k \<in> {i..<j}. sat \<phi> k))"
+| "sat (MatchP I r) i = (\<exists>j\<le>i. mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I \<and> (j, i) \<in> match r)"
+| "sat (MatchF I r) i = (\<exists>j\<ge>i. mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I \<and> (i, j) \<in> match r)"
 | "match Wild = {(i, i + 1) | i. True}"
-| "match (Test \<phi>) = {(i, i) | i. sat i \<phi>}"
+| "match (Test \<phi>) = {(i, i) | i. sat \<phi> i}"
 | "match (Plus r s) = match r \<union> match s"
 | "match (Times r s) = match r O match s"
 | "match (Star r) = rtrancl (match r)"
 
-lemma prev_rewrite: "sat i (Prev I \<phi>) \<longleftrightarrow> sat i (PossiblyP \<phi> I Wild)"
+lemma prev_rewrite: "sat (Prev I \<phi>) i \<longleftrightarrow> sat (PossiblyP \<phi> I Wild) i"
   apply (auto simp: PossiblyP_def split: nat.splits)
   subgoal for j
     apply (auto intro!: exI[of _ j])
     done
   done
 
-lemma next_rewrite: "sat i (Next I \<phi>) \<longleftrightarrow> sat i (PossiblyF Wild I \<phi>)"
+lemma next_rewrite: "sat (Next I \<phi>) i \<longleftrightarrow> sat (PossiblyF Wild I \<phi>) i"
   by (fastforce simp: PossiblyF_def intro: exI[of _ "Suc i"])
 
 lemma trancl_Base: "{(i, Suc i) |i. P i}\<^sup>* = {(i, j). i \<le> j \<and> (\<forall>k\<in>{i..<j}. P k)}"
@@ -129,11 +129,11 @@ lemma Ball_atLeastLessThan_reindex:
   "(\<forall>k\<in>{j..<i}. P (Suc k)) = (\<forall>k \<in> {j<..i}. P k)"
   by (auto simp: less_eq_Suc_le less_eq_nat.simps split: nat.splits)
 
-lemma since_rewrite: "sat i (Since \<phi> I \<psi>) \<longleftrightarrow> sat i (PossiblyP \<psi> I (Star (BaseP \<phi>)))"
+lemma since_rewrite: "sat (Since \<phi> I \<psi>) i \<longleftrightarrow> sat (PossiblyP \<psi> I (Star (BaseP \<phi>))) i"
 proof (rule iffI)
-  assume "sat i (Since \<phi> I \<psi>)"
-  then obtain j where j_def: "j \<le> i" "mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I" "sat j \<psi> "
-    "\<forall>k \<in> {j..<i}. sat (Suc k) \<phi>"
+  assume "sat (Since \<phi> I \<psi>) i"
+  then obtain j where j_def: "j \<le> i" "mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I" "sat \<psi> j"
+    "\<forall>k \<in> {j..<i}. sat \<phi> (Suc k)"
     by auto
   have match_BaseP: "match (BaseP \<phi>) = {(k, Suc k) | k. (k, Suc k) \<in> match (BaseP \<phi>)}"
     by (auto simp: BaseP_def)
@@ -143,30 +143,30 @@ proof (rule iffI)
   then have "(j, i) \<in> (match (BaseP \<phi>))\<^sup>*"
     using j_def(1) trancl_Base
     by (subst match_BaseP) auto
-  then show "sat i (PossiblyP \<psi> I (Star (BaseP \<phi>)))"
+  then show "sat (PossiblyP \<psi> I (Star (BaseP \<phi>))) i"
     using j_def(1,2,3)
     by (auto simp: PossiblyP_def)
 next
-  assume "sat i (PossiblyP \<psi> I (Star (BaseP \<phi>)))"
-  then obtain j where j_def: "j \<le> i" "mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I" "(j, i) \<in> (match (BaseP \<phi>))\<^sup>*" "sat j \<psi>"
+  assume "sat (PossiblyP \<psi> I (Star (BaseP \<phi>))) i"
+  then obtain j where j_def: "j \<le> i" "mem (\<tau> \<sigma> j) (\<tau> \<sigma> i) I" "(j, i) \<in> (match (BaseP \<phi>))\<^sup>*" "sat \<psi> j"
     by (auto simp: PossiblyP_def)
   have match_BaseP: "match (BaseP \<phi>) = {(k, Suc k) | k. (k, Suc k) \<in> match (BaseP \<phi>)}"
     by (auto simp: BaseP_def)
   have "\<And>k. k \<in> {j..<i} \<Longrightarrow> (k, Suc k) \<in> match (BaseP \<phi>)"
     using j_def(3) trancl_Base[of "\<lambda>k. (k, Suc k) \<in> match (BaseP \<phi>)"]
     by (auto simp: match_BaseP[symmetric])
-  then have "\<forall>k \<in> {j..<i}. sat (Suc k) \<phi>"
+  then have "\<forall>k \<in> {j..<i}. sat \<phi> (Suc k)"
     by (fastforce simp: BaseP_def)
-  then show "sat i (Since \<phi> I \<psi>)"
-    using j_def(1,2,4) Ball_atLeastLessThan_reindex[of j i "\<lambda>k. sat k \<phi>"]
+  then show "sat (Since \<phi> I \<psi>) i"
+    using j_def(1,2,4) Ball_atLeastLessThan_reindex[of j i "sat \<phi>"]
     by (auto simp: BaseP_def intro: exI[of _ j])
 qed
 
-lemma until_rewrite: "sat i (Until \<phi> I \<psi>) \<longleftrightarrow> sat i (PossiblyF (Star (BaseF \<phi>)) I \<psi>)"
+lemma until_rewrite: "sat (Until \<phi> I \<psi>) i \<longleftrightarrow> sat (PossiblyF (Star (BaseF \<phi>)) I \<psi>) i"
 proof (rule iffI)
-  assume "sat i (Until \<phi> I \<psi>)"
-  then obtain j where j_def: "j \<ge> i" "mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I" "sat j \<psi> "
-    "\<forall>k \<in> {i..<j}. sat k \<phi>"
+  assume "sat (Until \<phi> I \<psi>) i"
+  then obtain j where j_def: "j \<ge> i" "mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I" "sat \<psi> j"
+    "\<forall>k \<in> {i..<j}. sat \<phi> k"
     by auto
   have match_BaseF: "match (BaseF \<phi>) = {(k, Suc k) | k. (k, Suc k) \<in> match (BaseF \<phi>)}"
     by (auto simp: BaseF_def)
@@ -176,21 +176,21 @@ proof (rule iffI)
   then have "(i, j) \<in> (match (BaseF \<phi>))\<^sup>*"
     using j_def(1) trancl_Base
     by (subst match_BaseF) auto
-  then show "sat i (PossiblyF (Star (BaseF \<phi>)) I \<psi>)"
+  then show "sat (PossiblyF (Star (BaseF \<phi>)) I \<psi>) i"
     using j_def(1,2,3)
     by (auto simp: PossiblyF_def)
 next
-  assume "sat i (PossiblyF (Star (BaseF \<phi>)) I \<psi>)"
-  then obtain j where j_def: "j \<ge> i" "mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I" "(i, j) \<in> (match (BaseF \<phi>))\<^sup>*" "sat j \<psi>"
+  assume "sat (PossiblyF (Star (BaseF \<phi>)) I \<psi>) i"
+  then obtain j where j_def: "j \<ge> i" "mem (\<tau> \<sigma> i) (\<tau> \<sigma> j) I" "(i, j) \<in> (match (BaseF \<phi>))\<^sup>*" "sat \<psi> j"
     by (auto simp: PossiblyF_def)
   have match_BaseF: "match (BaseF \<phi>) = {(k, Suc k) | k. (k, Suc k) \<in> match (BaseF \<phi>)}"
     by (auto simp: BaseF_def)
   have "\<And>k. k \<in> {i..<j} \<Longrightarrow> (k, Suc k) \<in> match (BaseF \<phi>)"
     using j_def(3) trancl_Base[of "\<lambda>k. (k, Suc k) \<in> match (BaseF \<phi>)"]
     by (auto simp: match_BaseF[symmetric])
-  then have "\<forall>k \<in> {i..<j}. sat k \<phi>"
+  then have "\<forall>k \<in> {i..<j}. sat \<phi> k"
     by (fastforce simp: BaseF_def)
-  then show "sat i (Until \<phi> I \<psi>)"
+  then show "sat (Until \<phi> I \<psi>) i"
     using j_def(1,2,4)
     by auto
 qed
