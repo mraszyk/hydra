@@ -11,8 +11,9 @@ RUN locale-gen en_US.UTF-8 &&\
 RUN pip3 install antlr4-python3-runtime ply pyyaml setuptools wheel
 
 USER hydra
-RUN opam init -y --disable-sandboxing
-RUN opam install -y ocamlbuild ocamlfind dune dune-build-info safa menhir zarith
+RUN opam init -ay --disable-sandboxing
+RUN opam install -y ocamlbuild ocamlfind dune dune-build-info safa menhir zarith qcheck
+
 
 ENV WDIR /home/hydra
 WORKDIR ${WDIR}
