@@ -14,7 +14,6 @@ USER hydra
 RUN opam init -ay --disable-sandboxing
 RUN opam install -y ocamlbuild ocamlfind dune dune-build-info safa menhir zarith qcheck
 
-
 ENV WDIR /home/hydra
 WORKDIR ${WDIR}
 
