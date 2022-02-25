@@ -33,10 +33,6 @@ void gen_exp_log(Log *log, int n, int len) {
     }
 }
 
-Formula *pred(int i) {
-    return new PredFormula(ap_names[i], i);
-}
-
 Formula *neg(Formula *f) {
     return new NegFormula(f);
 }
@@ -50,8 +46,8 @@ Formula *always(Formula *f) {
 }
 
 Formula *getAndFormula(int n) {
-    Formula *cur_pos = impl(pred(n), always(impl(pred(ap_cnt - 1), pred(n))));
-    Formula *cur_neg = impl(neg(pred(n)), always(impl(pred(ap_cnt - 1), neg(pred(n)))));
+    Formula *cur_pos = impl(new_ap(n), always(impl(new_eof(), new_ap(n))));
+    Formula *cur_neg = impl(neg(new_ap(n)), always(impl(new_eof(), neg(new_ap(n)))));
     Formula *cur = new AndFormula(cur_pos, cur_neg);
     if (n > 0) {
         return new AndFormula(getAndFormula(n - 1), cur);
@@ -70,13 +66,12 @@ int main(int argc, char **argv) {
     int len = atoi(argv[4]);
 
     Formula *andFormula = getAndFormula(n);
-    Formula *not_e_1 = new NegFormula(pred(ap_cnt - 1));
-    Formula *not_e_2 = new NegFormula(pred(ap_cnt - 1));
+    Formula *not_e_1 = new NegFormula(new_eof());
+    Formula *not_e_2 = new NegFormula(new_eof());
     Formula *until = new UntilFormula(not_e_1, new AndFormula(not_e_2, andFormula), {0, 0});
     Formula *fmla = new NextFormula(until, {1, 1});
 
     print_fmla_hydra(argv[1], fmla);
-    print_fmla_monpoly(argv[1], fmla);
     delete fmla;
 
     Log log(len);

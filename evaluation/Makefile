@@ -5,9 +5,9 @@ CFLAGS = -std=c++17 -O3 -Wno-unused-result
 
 all: test evaluation
 
-test: $(FILES) $(HEADERS) gen_fmla gen_log
+test: gen_fmla gen_log
 
-evaluation: $(FILES) $(HEADERS)	gen_fmla gen_log gen_mtl_fixed gen_mtl_exp gen_pcre run
+evaluation: gen_fmla gen_log gen_mdl_quad gen_mtl_exp gen_mtl_fixed run
 
 gen_%: $(FILES) $(HEADERS) gen_%.cpp
 	$(CC) $(CFLAGS) -I../src/ -o $@ $(FILES) $@.cpp

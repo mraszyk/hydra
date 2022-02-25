@@ -14,14 +14,12 @@ typedef int32_t timestamp_delta;
 const timestamp MAX_TIMESTAMP = 0x7FFFFFFF;
 
 enum Boolean {
-    FALSE, TRUE, UNRESOLVED
+    FALSE, TRUE
 };
 
+Boolean BooleanNot(Boolean b);
 Boolean BooleanAnd(Boolean b1, Boolean b2);
 Boolean BooleanOr(Boolean b1, Boolean b2);
-Boolean BooleanImp(Boolean b1, Boolean b2);
-Boolean BooleanEq(Boolean b1, Boolean b2);
-Boolean BooleanNot(Boolean b);
 
 struct BoolVerdict {
     timestamp ts;
@@ -52,14 +50,6 @@ struct BooleanVerdict {
     BooleanVerdict operator||(const BooleanVerdict &w) const {
         CHECK(this->ts == w.ts);
         return BooleanVerdict(this->ts, BooleanOr(this->b, w.b));
-    }
-    BooleanVerdict imp(const BooleanVerdict &w) const {
-        CHECK(this->ts == w.ts);
-        return BooleanVerdict(this->ts, BooleanImp(this->b, w.b));
-    }
-    BooleanVerdict eq(const BooleanVerdict &w) const {
-        CHECK(this->ts == w.ts);
-        return BooleanVerdict(this->ts, BooleanEq(this->b, w.b));
     }
 };
 

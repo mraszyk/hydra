@@ -1,15 +1,15 @@
 #include "formula.h"
 
-TestRegex::~TestRegex() {
+LookaheadRegex::~LookaheadRegex() {
     if (f_owner) delete f;
 }
-bool TestRegex::equalTest(const TestRegex *r) const {
+bool LookaheadRegex::equalLookahead(const LookaheadRegex *r) const {
     return f->equal(r->f);
 }
 
-AtomicConsumeRegex::~AtomicConsumeRegex() {
+SymbolRegex::~SymbolRegex() {
     if (f_owner) delete f;
 }
-bool AtomicConsumeRegex::equalAtomic(const AtomicConsumeRegex *r) const {
+bool SymbolRegex::equalSymbol(const SymbolRegex *r) const {
     return f->equal(r->f);
 }

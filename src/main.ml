@@ -1,19 +1,26 @@
+open Const
 open Verified
 
 exception EXIT
 
-let usage () = Format.printf "Usage: vydra MDL LOG\n"; raise EXIT
+let usage () = Format.printf "Usage: vydra MDL LOG [-mdlaerial]\n"; raise EXIT
 
 external init: string -> int = "caml_init"
 external run: int -> (int * string * string list) option = "caml_run"
 external close: unit -> unit = "caml_close"
 
+let rec process_args = function
+  | x :: xs ->
+    let _ = if x = "-mdlaerial" then mdlaerial := true else () in
+    process_args xs
+  | [] -> ()
+
 let _ =
     let args = List.tl (Array.to_list Sys.argv) in
-    let _ = if List.length args <> 2 then usage () else () in
+    let _ = if List.length args < 2 then usage () else process_args (List.tl (List.tl args)) in
     let f =
         (let ch = open_in (List.nth args 0) in
-        let f = Mdl_parser.formula Mdl_lexer.token (Lexing.from_channel ch) in
+        let f = Mdl_parser.input Mdl_lexer.token (Lexing.from_channel ch) in
         (close_in ch; f)) in
     let init_hd = init (List.nth args 1) in
     let enat_of_ts ts = VYDRA.Enat (VYDRA.nat_of_integer (Z.of_string ts)) in

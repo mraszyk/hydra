@@ -42,7 +42,7 @@ struct Event {
         CHECK(0 <= fid && fid < ap_cnt);
         return ap_lookup[fid];
     }
-    int evalPred(const char *pred_name, int pred) const {
+    int evalAtom(const char *pred_name, int pred) const {
         if (c == -1) {
             CHECK(0 <= pred && pred < ap_cnt);
             return ap_lookup[pred];
@@ -112,7 +112,7 @@ public:
         if (pos == f_size) {
             e->eof = 1;
             e->tp++;
-            throw EOL();
+            return;
         }
         if (mapped[pos++] != '@') throw std::runtime_error("log file format");
         if (parseNumber(mapped, &pos, &ts)) throw std::runtime_error("timestamp");
@@ -168,7 +168,7 @@ public:
         if (e->pos == f_size) {
             e->eof = 1;
             e->tp++;
-            throw EOL();
+            return;
         }
         e->ts++;
         e->tp++;

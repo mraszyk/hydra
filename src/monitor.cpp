@@ -10,12 +10,9 @@
 #include "trie.h"
 #include "util.h"
 
-#define contains(x, f, t) ((f) <= (x) && (x) <= (t))
-
 Monitor *NonTempMonitor::clone() {
     NonTempMonitor *mon = new NonTempMonitor(fmla, input_reader, handle->clone());
     mon->eof = eof;
-    mon->t = t;
     return mon;
 }
 BooleanVerdict NonTempMonitor::step_impl() {
@@ -25,30 +22,122 @@ BooleanVerdict NonTempMonitor::step_impl() {
     return BooleanVerdict(handle->ts, b ? TRUE : FALSE);
 }
 
+Monitor *PrevMonitor::clone() {
+    PrevMonitor *mon = new PrevMonitor(input_reader, handle->clone(), subf->clone(), from, to);
+    mon->eof = eof;
+    mon->v = v;
+    return mon;
+}
+BooleanVerdict PrevMonitor::step_impl() {
+    input_reader->read_handle(handle);
+    if (handle->eof) throw EOL();
+    Boolean b = FALSE;
+    if (v) {
+        if (mem(v->ts, handle->ts, from, to)) b = v->b;
+    }
+    try {
+        v = subf->step();
+    } catch (const EOL &e) {
+        eof = 1;
+    }
+    return BooleanVerdict(handle->ts, b);
+}
+
+Monitor *NextMonitor::clone() {
+    NextMonitor *mon = new NextMonitor(input_reader, handle->clone(), subf->clone(), from, to);
+    mon->eof = eof;
+    mon->t = t;
+    return mon;
+}
+BooleanVerdict NextMonitor::step_impl() {
+    input_reader->read_handle(handle);
+    if (handle->eof) throw EOL();
+    if (t) {
+        timestamp t0 = *t;
+        t = handle->ts;
+        try {
+            BooleanVerdict v = subf->step();
+            Boolean b = FALSE;
+            if (mem(t0, handle->ts, from, to)) b = v.b;
+            return BooleanVerdict(t0, b);
+        } catch (const EOL &e) {
+            eof = 1;
+            if (mem(t0, handle->ts, from, to)) {
+                throw EOL();
+            } else {
+                return BooleanVerdict(t0, FALSE);
+            }
+        }
+    } else {
+        subf->step();
+        t = handle->ts;
+        return step_impl();
+    }
+}
+
+Monitor *SinceMonitor::clone() {
+    SinceMonitor *mon = new SinceMonitor(input_reader, handle->clone(), subf->clone(), subg->clone(), from, to);
+    mon->eof = eof;
+    mon->cphi = cphi;
+    mon->cpsi = cpsi;
+    mon->ocpsi = ocpsi;
+    mon->otpsi = otpsi;
+    return mon;
+}
+BooleanVerdict SinceMonitor::step_impl() {
+    BooleanVerdict vf = subf->step();
+    if (vf.b == TRUE) cphi++;
+    else cphi = 0;
+    cpsi++;
+    if (ocpsi) (*ocpsi)++;
+    while (cpsi > 0 && memL(handle->ts, vf.ts, from, to)) {
+        input_reader->read_handle(handle);
+        BooleanVerdict vg = subg->step();
+        if (vg.b == TRUE) {
+            ocpsi = cpsi;
+            otpsi = vg.ts;
+        }
+        cpsi--;
+    }
+    Boolean b = FALSE;
+    if (ocpsi && (*ocpsi) - 1 <= cphi && memR((*otpsi), vf.ts, from, to)) b = TRUE;
+    return BooleanVerdict(vf.ts, b);
+}
+
+Monitor *UntilMonitor::clone() {
+    UntilMonitor *mon = new UntilMonitor(input_reader, front->clone(), back->clone(), subf->clone(), subg->clone(), from, to);
+    mon->eof = eof;
+    mon->c = c;
+    mon->z = z;
+    return mon;
+}
+BooleanVerdict UntilMonitor::step_impl() {
+    input_reader->read_handle(back);
+    if (back->eof) throw EOL();
+    while (loopCondUntil()) {
+        BooleanVerdict vf = subf->step();
+        BooleanVerdict vg = subg->step();
+        input_reader->read_handle(front);
+        c++;
+        z = make_pair(vf.ts, make_pair(vf.b, vg.b));
+    }
+    if (c == 0) throw EOL();
+    else {
+        c--;
+        if (z->second.second && memL(back->ts, z->first, from, to)) return BooleanVerdict(back->ts, TRUE);
+        else if (!z->second.first) return BooleanVerdict(back->ts, FALSE);
+        else if (front->eof) throw EOL();
+        else return BooleanVerdict(back->ts, FALSE);
+    }
+}
+
 Monitor *BwMonitor::clone() {
     BwMonitor *mon = new BwMonitor(from, to, dfa, s->clone(), 0);
     mon->eof = eof;
     return mon;
 }
 BooleanVerdict BwMonitor::step_impl() {
-    BooleanVerdict v = s->check_bw(from, to);
-
-    if (s->front_eof()) eof = 1;
-
-    return v;
-}
-
-Monitor *BwOneMonitor::clone() {
-    BwOneMonitor *mon = new BwOneMonitor(delta, dfa, s->clone(), 0);
-    mon->eof = eof;
-    return mon;
-}
-BooleanVerdict BwOneMonitor::step_impl() {
-    BooleanVerdict v = s->check_bw_shift(delta);
-
-    if (s->front_eof()) eof = 1;
-
-    return v;
+    return s->check_bw(from, to);
 }
 
 Monitor *FwMonitor::clone() {
@@ -57,176 +146,5 @@ Monitor *FwMonitor::clone() {
     return mon;
 }
 BooleanVerdict FwMonitor::step_impl() {
-    if (s->back_eof()) {
-        eof = 1;
-        throw EOL();
-    }
     return s->check_fw(from, to);
-}
-
-Monitor *FwOneMonitor::clone() {
-    FwOneMonitor *mon = new FwOneMonitor(delta, dfa, s->clone(), 0);
-    mon->eof = eof;
-    return mon;
-}
-BooleanVerdict FwOneMonitor::step_impl() {
-    if (s->back_eof()) {
-        eof = 1;
-        throw EOL();
-    }
-    return s->check_fw_shift(delta);
-}
-
-Monitor *PrevMonitor::clone() {
-    Monitor *monf = subf->clone();
-    PrevMonitor *mon = new PrevMonitor(monf, from, to);
-    mon->eof = eof;
-    mon->v = v;
-    return mon;
-}
-BooleanVerdict PrevMonitor::step_impl() {
-    BooleanVerdict subv = subf->step();
-
-    if (v) {
-        BooleanVerdict last_subv = *v;
-        v = subv;
-        if (contains(subv.ts - last_subv.ts, from, to)) return BooleanVerdict(subv.ts, last_subv.b);
-        else return BooleanVerdict(subv.ts, FALSE);
-    } else {
-        v = subv;
-        return BooleanVerdict(subv.ts, FALSE);
-    }
-}
-
-Monitor *NextMonitor::clone() {
-    Monitor *monf = subf->clone();
-    NextMonitor *mon = new NextMonitor(monf, from, to);
-    mon->eof = eof;
-    mon->t = t;
-    return mon;
-}
-BooleanVerdict NextMonitor::step_impl() {
-    do {
-        try {
-            BooleanVerdict subv = subf->step();
-
-            if (t) {
-                timestamp last_ts = *t;
-                t = subv.ts;
-                if (contains(subv.ts - last_ts, from, to)) return BooleanVerdict(last_ts, subv.b);
-                else return BooleanVerdict(last_ts, FALSE);
-            } else {
-                t = subv.ts;
-            }
-        } catch(const EOL &e) {
-            if (t) {
-                timestamp ts = *t;
-                t = {};
-                return BooleanVerdict(ts, UNRESOLVED);
-            }
-            else throw EOL();
-        }
-    } while(true);
-}
-
-Monitor *SinceMonitor::clone() {
-    Monitor *monf = subf->clone();
-    Monitor *mong = subg->clone();
-    SinceMonitor *mon = new SinceMonitor(monf, mong, from, to);
-    mon->eof = eof;
-    mon->subfv = subfv;
-    mon->subgv = subgv;
-    mon->subfp = subfp;
-    mon->subgp = subgp;
-    mon->unresolved = unresolved;
-    mon->last_sat = last_sat;
-    mon->last_viol = last_viol;
-    return mon;
-}
-BooleanVerdict SinceMonitor::step_impl() {
-    subfv = subf->step();
-    subfp.update(subfv->ts);
-
-    if (subfv->b == UNRESOLVED) {
-        unresolved = 1;
-    } else if (subfv->b == FALSE) {
-        last_viol = std::make_pair(subfp.ts, subfp.tp);
-    }
-
-    if (subgp.tp == -1) {
-        subgv = subg->step();
-        subgp.update(subgv->ts);
-    }
-
-    while (!subgp.eof && subgp.tp <= subfp.tp && subfp.ts - subgp.ts >= from) {
-        if (subgv->b == UNRESOLVED) {
-            unresolved = 1;
-        } else if (subgv->b == TRUE) {
-            last_sat = std::make_pair(subgp.ts, subgp.tp);
-        }
-        try {
-            subgv = subg->step();
-            subgp.update(subgv->ts);
-        } catch(const EOL &e) {
-            subgp.eof = 1;
-            subgp.tp++;
-        }
-    }
-
-    if (unresolved) {
-        return BooleanVerdict(subfp.ts, UNRESOLVED);
-    } else {
-        int v = last_sat && subfp.ts - last_sat->first <= to && (!last_viol || last_sat->second >= last_viol->second);
-        return BooleanVerdict(subfp.ts, v ? TRUE : FALSE);
-    }
-}
-
-Monitor *UntilMonitor::clone() {
-    Monitor *monf = subf->clone();
-    Monitor *mong = subg->clone();
-    Monitor *monh = subh->clone();
-    UntilMonitor *mon = new UntilMonitor(monf, mong, monh, from, to);
-    mon->eof = eof;
-    mon->subfv = subfv;
-    mon->subgv = subgv;
-    mon->subhv = subhv;
-    mon->subfp = subfp;
-    mon->subgp = subgp;
-    mon->subhp = subhp;
-    mon->unresolved = unresolved;
-    mon->last_sat = last_sat;
-    mon->last_viol = last_viol;
-    return mon;
-}
-BooleanVerdict UntilMonitor::step_impl() {
-    subhv = subh->step();
-    subhp.update(subhv->ts);
-
-    if (last_sat && last_sat->second < subhp.tp) last_sat = {};
-    if (last_viol && last_viol->second < subhp.tp) last_viol = {};
-
-    if (subfp.tp == -1) read_fg();
-
-    while (!subfp.eof && !last_viol && subfp.ts - subhp.ts <= to) {
-        if (subgv->b == UNRESOLVED) {
-            unresolved = 1;
-        } else if (subgv->b == TRUE) {
-            last_sat = std::make_pair(subfp.ts, subfp.tp);
-        }
-        if (subfv->b == UNRESOLVED) {
-            unresolved = 1;
-        } else if (subfv->b == FALSE) {
-            last_viol = std::make_pair(subfp.ts, subfp.tp);
-        }
-        read_fg();
-    }
-
-    if (unresolved) {
-        return BooleanVerdict(subhp.ts, UNRESOLVED);
-    } else {
-        int v = last_sat && last_sat->first - subhp.ts >= from;
-	if (v) return BooleanVerdict(subhp.ts, TRUE);
-	else if (subfp.eof) return BooleanVerdict(subhp.ts, UNRESOLVED);
-	else return BooleanVerdict(subhp.ts, FALSE);
-    }
 }

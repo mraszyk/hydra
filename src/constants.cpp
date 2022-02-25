@@ -2,7 +2,7 @@
 
 #include "util.h"
 
-int pure_mdl;
 int grep;
+int mdlaerial;
 
 interval inf_in = {0, MAX_TIMESTAMP};

@@ -2,9 +2,9 @@ FILES = *.cpp
 HEADERS = *.h
 CC = g++
 CFLAGS = -std=c++17 -O3 -Wno-unused-result
-OCAMLBUILD=ocamlbuild -ocamlopt "ocamlopt -O3 -unbox-closures -unbox-closures-factor 20 " -use-ocamlfind -use-menhir -package zarith -no-plugin -yaccflags --explain -lflags log.o
+OCAMLBUILD = ocamlbuild -ocamlopt "ocamlopt -O3 -unbox-closures -unbox-closures-factor 20 " -use-ocamlfind -use-menhir -package zarith -no-plugin -yaccflags --explain -lflags log.o
 
-all: hydra vydra
+all: hydra vydra mdl2mdl
 
 hydra: $(FILES) $(HEADERS) lexer.cpp parser.cpp
 	$(CC) $(CFLAGS) -o $@ $(FILES)
@@ -16,7 +16,11 @@ lexer.cpp: lexer.l
 parser.cpp: parser.y lexer.cpp
 	bison parser.y
 
-vydra: _build/log.o
+mdl2mdl: mdl2mdl.ml verified.ml
+	$(OCAMLBUILD) mdl2mdl.native
+	cp mdl2mdl.native ../mdl2mdl
+
+vydra: _build/log.o main.ml verified.ml
 	$(OCAMLBUILD) main.native
 	cp main.native ../vydra
 

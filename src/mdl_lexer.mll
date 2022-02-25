@@ -9,22 +9,14 @@ exception ParsingError of string
 
 let parsing_error i j fmt = Format.kasprintf (fun s -> raise (ParsingError_(i,j,s))) fmt
 let lexing_error lexbuf fmt = parsing_error (lexeme_start_p lexbuf) (lexeme_end_p lexbuf) fmt
-
-let lex_interval l r =
-  let ls = (VYDRA.nat_of_integer (Z.of_string l)) in
-  (match r with
-    | "INFINITY" -> VYDRA.interval_enat (VYDRA.Enat ls) VYDRA.Infinity_enat
-    | _ -> VYDRA.interval_enat (VYDRA.Enat ls) (VYDRA.Enat (VYDRA.nat_of_integer (Z.of_string r))))
 }
 
-let blank = [' ' '\t' ]+
-let newline = ['\r' '\n' ] | "\r\n"
-let num = ['0'-'9' ]+
-let alpha = ['a'-'z' 'A'-'Z']
-let alphanums = ['a'-'z' 'A'-'Z' '0'-'9' ]*
+let num = ['0'-'9']*
+let alpha = ['a'-'z''A'-'Z']
+let alphanums = ['a'-'z''A'-'Z''0'-'9']*
+let blank = [' ''\r''\n''\t']*
 
 rule token = parse
-  | newline                                       { Lexing.new_line lexbuf; token lexbuf }
   | blank                                         { token lexbuf }
   | "false"                                       { FALSE }
   | "true"                                        { TRUE }
@@ -37,18 +29,23 @@ rule token = parse
   | "UNTIL"                                       { UNTIL }
   | "ONCE"                                        { ONCE }
   | "EVENTUALLY"                                  { EVENTUALLY }
-  | "HISTORICALLY"                                { HISTORICALLY }
+  | "PAST_ALWAYS"                                 { PAST_ALWAYS }
   | "ALWAYS"                                      { ALWAYS }
-  | "▷"                                           { FORWARD }
   | "◁"                                           { BACKWARD }
+  | "▷"                                           { FORWARD }
   | "?"                                           { QUESTION }
-  | "."                                           { WILDCARD }
+  | "."                                           { DOT }
   | "+"                                           { PLUS }
   | "*"                                           { STAR }
-  | "("                                           { LOPEN }
-  | ")"                                           { ROPEN }
-  | (alpha alphanums)  as name "()"?              { ATOM name }
-  | '[' blank* (num as l) blank* "," blank* ((num | "INFINITY") as r) blank* ']'
-                                                  { INTERVAL (lex_interval l r) }
+  | "INFINITY"                                    { INFINITY }
+  | "("                                           { OPEN }
+  | ")"                                           { CLOSE }
+
+  | (alpha alphanums) as name "()"?               { ATOM name }
+  | num as n                                      { NUMBER (VYDRA.nat_of_integer (Z.of_string n)) }
+  | "["                                           { INTOPEN }
+  | ","                                           { SEP }
+  | "]"                                           { INTCLOSE }
+
   | eof                                           { EOF }
-  | _ as c                                        { lexing_error lexbuf "unexpected character: `%c'" c }
+  | _ as c                                        { lexing_error lexbuf "unexpected character" c }

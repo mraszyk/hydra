@@ -30,12 +30,12 @@ def gen_gnuplot(exp_name, exp_type):
         if not plot_config_exp[exp_name]["log"]["x"] is None:
             print("set logscale x "+str(plot_config_exp[exp_name]["log"]["x"]), file=f)
         sep="plot "
-        for tool_name in exps[exp_name]["tools"]:
+        for tool_name in reversed(exps[exp_name]["tools"]):
             tool_dict = plot_config_tools[tool_name]
             f.write(sep)
             sep=", \\\n     "
-            print("'tmp_" + tool_name + "_" + exp_type + "_S.dat' using 1:2 notitle with points pt " + str(tool_dict["pointtype"]) + " ps 1.75 lc rgbcolor " + tool_dict["color"] + ", \\", file=f)
-            f.write("     'tmp_" + tool_name + "_" + exp_type + "_A.dat' using 1:2 title '" + tool_dict["name"]  + "' with linespoints pt " + str(tool_dict["pointtype"] + 1) + " ps 1.75 lc rgbcolor " + tool_dict["color"])
+            print("'tmp_" + tool_name + "_" + exp_type + "_S.dat' using 1:2 notitle with points pt " + str(tool_dict["pointtype"]) + " ps 1.00 lc rgbcolor " + tool_dict["color"] + ", \\", file=f)
+            f.write("     'tmp_" + tool_name + "_" + exp_type + "_A.dat' using 1:2 title '" + tool_dict["name"]  + "' with linespoints pt " + str(tool_dict["pointtype"] + 1) + " ps 1.50 lw 3.00 lc rgbcolor " + tool_dict["color"])
         print("", file=f)
     elif plot_config_exp[exp_name]["graph_type"] == "bars":
         print("set boxwidth 0.45", file=f)
@@ -61,10 +61,13 @@ def gen_gnuplot(exp_name, exp_type):
         print("", file=f)
 
 def mean(v):
+    if v == []:
+        return 0.0
     return sum(v) / len(v)
 
 def median(v):
-    assert v != []
+    if v == []:
+        return 0.0
     if len(v) % 2 == 0:
         return (sorted(v)[len(v) // 2 - 1] + sorted(v)[len(v) // 2]) / 2
     else:
@@ -100,15 +103,18 @@ def process():
                         x = open(tool_out_stat, "r").read()
                         m = re.search("([0-9.]*) ([0-9.]*)", x)
                         stats_time[exp_name][tool_name][n][f].append(float(m.group(1)) / 1000.0)
-                        stats_space[exp_name][tool_name][n][f].append(float(m.group(2)) / 1000.0)
+                        if float(m.group(2)) > 0.0:
+                          stats_space[exp_name][tool_name][n][f].append(float(m.group(2)) / 1000.0)
                     if exp_config["aggr"] == "mean":
-                        print(sn + " " + str(mean(stats_time[exp_name][tool_name][n][f])), file=fts)
-                        print(sn + " " + str(mean(stats_space[exp_name][tool_name][n][f])), file=fss)
+                        time = mean(stats_time[exp_name][tool_name][n][f])
+                        space = mean(stats_space[exp_name][tool_name][n][f])
                     elif exp_config["aggr"] == "median":
-                        print(sn + " " + str(median(stats_time[exp_name][tool_name][n][f])), file=fts)
-                        print(sn + " " + str(median(stats_space[exp_name][tool_name][n][f])), file=fss)
-                    ta += stats_time[exp_name][tool_name][n][f]
-                    sa += stats_space[exp_name][tool_name][n][f]
+                        time = median(stats_time[exp_name][tool_name][n][f])
+                        space = median(stats_space[exp_name][tool_name][n][f])
+                    print(sn + " " + str(time), file=fts)
+                    print(sn + " " + str(space), file=fss)
+                    ta += [time]
+                    sa += [space]
                 if exp_config["aggr"] == "mean":
                     print(sn + " " + str(mean(ta)), file=fta)
                     print(sn + " " + str(mean(sa)), file=fsa)
@@ -125,3 +131,4 @@ def process():
         os.system("gnuplot tmp_" + exp_name + "_space.gnuplot")
 
 process()
+os.system("rm -f tmp_*")

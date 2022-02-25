@@ -1,73 +1,100 @@
 %{
+open Const
 open Verified
-let inf_in = VYDRA.interval_enat (VYDRA.Enat (VYDRA.nat_of_integer (Z.of_int 0))) VYDRA.Infinity_enat
 %}
 
-%token <string> ATOM
-%token <Verified.VYDRA.enat Verified.VYDRA.i> INTERVAL
-%token LOPEN ROPEN FORWARD BACKWARD
-%token FALSE TRUE NEG CONJ DISJ PLUS EOF
-%token WILDCARD QUESTION STAR
-%token SINCE UNTIL
-%token PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
+%token FALSE
+%token TRUE
+%token NEG
+%token CONJ
+%token DISJ
+%token PREV
+%token NEXT
+%token SINCE
+%token UNTIL
+%token ONCE
+%token EVENTUALLY
+%token PAST_ALWAYS
+%token ALWAYS
+%token BACKWARD
+%token FORWARD
+%token QUESTION
+%token DOT
+%token PLUS
+%token STAR
+%token INFINITY
+%token OPEN
+%token CLOSE
+%token EOF
 
-%nonassoc FALSE TRUE WILDCARD
+%token <string> ATOM
+%token <Verified.VYDRA.nat> NUMBER
+%token INTOPEN
+%token SEP
+%token INTCLOSE
+
 %nonassoc BACKWARD FORWARD
-%nonassoc PREV NEXT ONCE EVENTUALLY HISTORICALLY ALWAYS
-%left SINCE UNTIL
+
+%right SINCE UNTIL
+%nonassoc PREV NEXT ONCE EVENTUALLY PAST_ALWAYS ALWAYS
+%nonassoc NEG
 %left DISJ
 %left CONJ
+%nonassoc FALSE TRUE ATOM
+
 %left PLUS
 %left CONCAT
-%nonassoc NEG
-%nonassoc STAR
-%nonassoc LOPEN
-%nonassoc QUESTION
-%nonassoc INTERVAL
-%nonassoc ATOM
+%nonassoc SYMBOL
+%nonassoc QUESTION DOT STAR
 
-%type <(string, Verified.VYDRA.enat) Verified.VYDRA.formula> formula
-%start formula
+%nonassoc OPEN CLOSE
+
+%type <(string, VYDRA.enat) VYDRA.formula> input
+%start input
 
 %%
 
+input:
+  | f=formula EOF { f }
+
+number:
+  | n=NUMBER { n }
+
+infnumber:
+  | n=NUMBER { VYDRA.Enat n }
+  | INFINITY { VYDRA.Infinity_enat }
+
+interval:
+  |                                            { VYDRA.interval_enat (VYDRA.Enat (VYDRA.nat_of_integer (Z.of_int 0))) VYDRA.Infinity_enat true true }
+  | INTOPEN l=number SEP r=infnumber INTCLOSE  { VYDRA.interval_enat (VYDRA.Enat l) r true true }
+  | INTCLOSE l=number SEP r=infnumber INTOPEN  { VYDRA.interval_enat (VYDRA.Enat l) r false false }
+  | INTOPEN l=number SEP r=infnumber INTOPEN   { VYDRA.interval_enat (VYDRA.Enat l) r true false }
+  | INTCLOSE l=number SEP r=infnumber INTCLOSE { VYDRA.interval_enat (VYDRA.Enat l) r false true }
+
+regex:
+  | f=formula QUESTION                        { VYDRA.Lookahead f }
+  | f=formula                                 { VYDRA.Symbol f } %prec SYMBOL
+  | DOT                                       { VYDRA.Symbol (VYDRA.Bool true) }
+  | r=regex PLUS s=regex                      { VYDRA.Plus (r, s) }
+  | r=regex s=regex                           { VYDRA.Times (r, s) } %prec CONCAT
+  | r=regex STAR                              { VYDRA.Star r }
+  | OPEN r=regex CLOSE                        { r }
+
 formula:
-| f=f EOF { f }
-
-f:
-| LOPEN f=f ROPEN                       { f }
-| FALSE                                 { Verified.VYDRA.Bool false }
-| TRUE                                  { Verified.VYDRA.Bool true }
-| a=ATOM                                { Verified.VYDRA.Atom a }
-| a=ATOM LOPEN ROPEN                    { Verified.VYDRA.Atom a }
-| NEG f=f                               { Verified.VYDRA.Neg f }
-| f=f CONJ g=f                          { Verified.VYDRA.Bin ((fun x y -> x && y), f, g) }
-| f=f DISJ g=f                          { Verified.VYDRA.Bin ((fun x y -> x || y), f, g) }
-| PREV i=INTERVAL f=f                   { Verified.VYDRA.Prev (i, f) }
-| PREV            f=f                   { Verified.VYDRA.Prev (inf_in, f) }
-| NEXT i=INTERVAL f=f                   { Verified.VYDRA.Next (i, f) }
-| NEXT            f=f                   { Verified.VYDRA.Next (inf_in, f) }
-| f=f SINCE i=INTERVAL g=f              { Verified.VYDRA.Since (f, i, g) }
-| f=f SINCE            g=f              { Verified.VYDRA.Since (f, inf_in, g) }
-| f=f UNTIL i=INTERVAL g=f              { Verified.VYDRA.Until (f, i, g) }
-| f=f UNTIL            g=f              { Verified.VYDRA.Until (f, inf_in, g) }
-| ONCE i=INTERVAL f=f                   { Verified.VYDRA.Since (Verified.VYDRA.Bool true, i, f) }
-| ONCE            f=f                   { Verified.VYDRA.Since (Verified.VYDRA.Bool true, inf_in, f) }
-| EVENTUALLY i=INTERVAL f=f             { Verified.VYDRA.Until (Verified.VYDRA.Bool true, i, f) }
-| EVENTUALLY            f=f             { Verified.VYDRA.Until (Verified.VYDRA.Bool true, inf_in, f) }
-| HISTORICALLY i=INTERVAL f=f           { Verified.VYDRA.Neg (Verified.VYDRA.Since (Verified.VYDRA.Bool true, i, Verified.VYDRA.Neg f)) }
-| HISTORICALLY            f=f           { Verified.VYDRA.Neg (Verified.VYDRA.Since (Verified.VYDRA.Bool true, inf_in, Verified.VYDRA.Neg f)) }
-| ALWAYS i=INTERVAL f=f                 { Verified.VYDRA.Neg (Verified.VYDRA.Until (Verified.VYDRA.Bool true, i, Verified.VYDRA.Neg f)) }
-| ALWAYS            f=f                 { Verified.VYDRA.Neg (Verified.VYDRA.Until (Verified.VYDRA.Bool true, inf_in, Verified.VYDRA.Neg f)) }
-| BACKWARD i=INTERVAL r=re              { Verified.VYDRA.MatchP (i, r) } %prec BACKWARD
-| BACKWARD            r=re              { Verified.VYDRA.MatchP (inf_in, r) } %prec BACKWARD
-| FORWARD i=INTERVAL r=re               { Verified.VYDRA.MatchF (i, r) } %prec FORWARD
-| FORWARD            r=re               { Verified.VYDRA.MatchF (inf_in, r) } %prec FORWARD
-
-re:
-| LOPEN r=re ROPEN     { r }
-| WILDCARD             { Verified.VYDRA.Wild }
-| f=f QUESTION         { Verified.VYDRA.Test f }
-| r=re PLUS s=re       { Verified.VYDRA.Plus (r, s) }
-| r=re      s=re       { Verified.VYDRA.Times (r, s) } %prec CONCAT
-| r=re STAR            { Verified.VYDRA.Star r }
+  | FALSE                                     { VYDRA.Bool false }
+  | TRUE                                      { VYDRA.Bool true }
+  | a=ATOM                                    { VYDRA.Atom a }
+  | NEG f=formula                             { VYDRA.Neg f }
+  | f=formula CONJ g=formula                  { VYDRA.Bin ((fun x y -> x && y), f, g) }
+  | f=formula DISJ g=formula                  { VYDRA.Bin ((fun x y -> x || y), f, g) }
+  | PREV i=interval f=formula                 { VYDRA.Prev (i, f) }
+  | NEXT i=interval f=formula                 { VYDRA.Next (i, f) }
+  | f=formula SINCE i=interval g=formula      { VYDRA.Since (f, i, g) }
+  | f=formula UNTIL i=interval g=formula      { VYDRA.Until (f, i, g) }
+  | ONCE i=interval f=formula                 { VYDRA.Since (VYDRA.Bool true, i, f) }
+  | EVENTUALLY i=interval f=formula           { VYDRA.Until (VYDRA.Bool true, i, f) }
+  | PAST_ALWAYS i=interval f=formula          { VYDRA.Neg (VYDRA.Since (VYDRA.Bool true, i, VYDRA.Neg f)) }
+  | ALWAYS i=interval f=formula               { VYDRA.Neg (VYDRA.Until (VYDRA.Bool true, i, VYDRA.Neg f)) }
+  | BACKWARD i=interval r=regex               { VYDRA.MatchP (i, if !mdlaerial then VYDRA.Times (r, VYDRA.Symbol (VYDRA.Bool true)) else r) } %prec BACKWARD
+  | FORWARD i=interval r=regex                { VYDRA.MatchF (i, if !mdlaerial then VYDRA.Times (r, VYDRA.Symbol (VYDRA.Bool true)) else r) } %prec FORWARD
+  | OPEN f=formula CLOSE                      { f }

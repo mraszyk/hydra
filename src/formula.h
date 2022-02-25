@@ -9,93 +9,68 @@
 #include <cassert>
 #include <cstdlib>
 
-class Monitor;
-
 struct Regex;
-struct TestRegex;
-struct WildCardRegex;
-struct OrRegex;
-struct ConcatRegex;
+struct LookaheadRegex;
+struct SymbolRegex;
+struct PlusRegex;
+struct TimesRegex;
 struct StarRegex;
 
-struct ConsumeRegex;
-struct AtomicConsumeRegex;
-struct OrConsumeRegex;
-struct ConcatConsumeRegex;
-struct StarConsumeRegex;
-
 struct Formula;
-struct BwFormula;
-struct BwConsumeFormula;
-struct BwOneFormula;
-struct FwFormula;
-struct FwConsumeFormula;
-struct FwOneFormula;
 struct BoolFormula;
-struct PredFormula;
+struct AtomFormula;
 struct NegFormula;
 struct AndFormula;
 struct OrFormula;
-struct ImpFormula;
-struct EqFormula;
 struct PrevFormula;
 struct NextFormula;
 struct SinceFormula;
 struct UntilFormula;
+struct BwFormula;
+struct FwFormula;
 
 class RegexVisitor {
 public:
-    virtual void visit(TestRegex *r) = 0;
-    virtual void visit(WildCardRegex *r) = 0;
-    virtual void visit(OrRegex *r) = 0;
-    virtual void visit(ConcatRegex *r) = 0;
+    virtual void visit(LookaheadRegex *r) = 0;
+    virtual void visit(SymbolRegex *r) = 0;
+    virtual void visit(PlusRegex *r) = 0;
+    virtual void visit(TimesRegex *r) = 0;
     virtual void visit(StarRegex *r) = 0;
-};
-
-class ConsumeRegexVisitor {
-public:
-    virtual void visit(AtomicConsumeRegex *r) = 0;
-    virtual void visit(OrConsumeRegex *r) = 0;
-    virtual void visit(ConcatConsumeRegex *r) = 0;
-    virtual void visit(StarConsumeRegex *r) = 0;
 };
 
 class FormulaVisitor {
 public:
-    virtual void visit(BwFormula *f) = 0;
-    virtual void visit(BwConsumeFormula *f) = 0;
-    virtual void visit(BwOneFormula *f) = 0;
-    virtual void visit(FwFormula *f) = 0;
-    virtual void visit(FwConsumeFormula *f) = 0;
-    virtual void visit(FwOneFormula *f) = 0;
     virtual void visit(BoolFormula *f) = 0;
-    virtual void visit(PredFormula *f) = 0;
+    virtual void visit(AtomFormula *f) = 0;
     virtual void visit(NegFormula *f) = 0;
     virtual void visit(AndFormula *f) = 0;
     virtual void visit(OrFormula *f) = 0;
-    virtual void visit(ImpFormula *f) = 0;
-    virtual void visit(EqFormula *f) = 0;
     virtual void visit(PrevFormula *f) = 0;
     virtual void visit(NextFormula *f) = 0;
     virtual void visit(SinceFormula *f) = 0;
     virtual void visit(UntilFormula *f) = 0;
+    virtual void visit(BwFormula *f) = 0;
+    virtual void visit(FwFormula *f) = 0;
 };
 
 struct Regex {
     virtual ~Regex() {}
     virtual void accept(RegexVisitor &v) = 0;
 
+    virtual bool nullable() const = 0;
+    virtual bool wf() const = 0;
+
     virtual bool equal(const Regex *r) const = 0;
-    virtual bool equalTest(const TestRegex *r) const {
+    virtual bool equalLookahead(const LookaheadRegex *r) const {
         return false;
     }
-    virtual bool equalWildCard(const WildCardRegex *r) const {
+    virtual bool equalSymbol(const SymbolRegex *r) const {
         return false;
     }
-    virtual bool equalOr(const OrRegex *r) const {
+    virtual bool equalPlus(const PlusRegex *r) const {
         return false;
     }
-    virtual bool equalConcat(const ConcatRegex *r) const {
+    virtual bool equalTimes(const TimesRegex *r) const {
         return false;
     }
     virtual bool equalStar(const StarRegex *r) const {
@@ -103,41 +78,59 @@ struct Regex {
     }
 };
 
-struct TestRegex : Regex {
+struct LookaheadRegex : Regex {
     Formula *f;
     int f_owner;
     int fid;
 
-    TestRegex(Formula *f) : f(f), f_owner(1) {}
-    ~TestRegex();
+    LookaheadRegex(Formula *f) : f(f), f_owner(1), fid(-1) {}
+    ~LookaheadRegex();
     void accept(RegexVisitor &v) override {
         v.visit(this);
     }
 
-    bool equal(const Regex *r) const override {
-        return r->equalTest(this);
-    }
-    bool equalTest(const TestRegex *r) const override;
-};
-
-struct WildCardRegex : Regex {
-    void accept(RegexVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Regex *r) const override {
-        return r->equalWildCard(this);
-    }
-    bool equalWild(const WildCardRegex *r) {
+    bool nullable() const override {
         return true;
     }
+    bool wf() const override {
+        return false;
+    }
+
+    bool equal(const Regex *r) const override {
+        return r->equalLookahead(this);
+    }
+    bool equalLookahead(const LookaheadRegex *r) const override;
 };
 
-struct OrRegex : Regex {
+struct SymbolRegex : Regex {
+    Formula *f;
+    int f_owner;
+    int fid;
+
+    SymbolRegex(Formula *f) : f(f), f_owner(1), fid(-1) {}
+    ~SymbolRegex();
+    void accept(RegexVisitor &v) override {
+        v.visit(this);
+    }
+
+    bool nullable() const override {
+        return false;
+    }
+    bool wf() const override {
+        return true;
+    }
+
+    bool equal(const Regex *r) const override {
+        return r->equalSymbol(this);
+    }
+    bool equalSymbol(const SymbolRegex *r) const override;
+};
+
+struct PlusRegex : Regex {
     Regex *left, *right;
 
-    OrRegex(Regex *left, Regex *right) : left(left), right(right) {}
-    ~OrRegex() {
+    PlusRegex(Regex *left, Regex *right) : left(left), right(right) {}
+    ~PlusRegex() {
         if (left != NULL) delete left;
         if (right != NULL) delete right;
     }
@@ -145,19 +138,26 @@ struct OrRegex : Regex {
         v.visit(this);
     }
 
-    bool equal(const Regex *r) const override {
-        return r->equalOr(this);
+    bool nullable() const override {
+        return left->nullable() || right->nullable();
     }
-    bool equalOr(const OrRegex *r) const override {
-        return (left->equal(r->left) && right->equal(r->right)) || (left->equal(r->right) && right->equal(r->left));
+    bool wf() const override {
+        return left->wf() && right->wf();
+    }
+
+    bool equal(const Regex *r) const override {
+        return r->equalPlus(this);
+    }
+    bool equalPlus(const PlusRegex *r) const override {
+        return left->equal(r->left) && right->equal(r->right);
     }
 };
 
-struct ConcatRegex : Regex {
+struct TimesRegex : Regex {
     Regex *left, *right;
 
-    ConcatRegex(Regex *left, Regex *right) : left(left), right(right) {}
-    ~ConcatRegex() {
+    TimesRegex(Regex *left, Regex *right) : left(left), right(right) {}
+    ~TimesRegex() {
         if (left != NULL) delete left;
         if (right != NULL) delete right;
     }
@@ -165,11 +165,18 @@ struct ConcatRegex : Regex {
         v.visit(this);
     }
 
-    bool equal(const Regex *r) const override {
-        return r->equalConcat(this);
+    bool nullable() const override {
+        return left->nullable() && right->nullable();
     }
-    bool equalConcat(const ConcatRegex *r) const override {
-        return (left->equal(r->left) && right->equal(r->right)) || (left->equal(r->right) && right->equal(r->left));
+    bool wf() const override {
+        return right->wf() && (!right->nullable() || left->wf());
+    }
+
+    bool equal(const Regex *r) const override {
+        return r->equalTimes(this);
+    }
+    bool equalTimes(const TimesRegex *r) const override {
+        return left->equal(r->left) && right->equal(r->right);
     }
 };
 
@@ -184,105 +191,17 @@ struct StarRegex : Regex {
         v.visit(this);
     }
 
+    bool nullable() const override {
+        return true;
+    }
+    bool wf() const override {
+        return body->wf();
+    }
+
     bool equal(const Regex *r) const override {
         return r->equalStar(this);
     }
     bool equalStar(const StarRegex *r) const override {
-        return body->equal(r->body);
-    }
-};
-
-struct ConsumeRegex {
-    virtual ~ConsumeRegex() {}
-    virtual void accept(ConsumeRegexVisitor &v) = 0;
-
-    virtual bool equal(const ConsumeRegex *r) const = 0;
-    virtual bool equalAtomic(const AtomicConsumeRegex *r) const {
-        return false;
-    }
-    virtual bool equalOr(const OrConsumeRegex *r) const {
-        return false;
-    }
-    virtual bool equalConcat(const ConcatConsumeRegex *r) const {
-        return false;
-    }
-    virtual bool equalStar(const StarConsumeRegex *r) const {
-        return false;
-    }
-};
-
-struct AtomicConsumeRegex : ConsumeRegex {
-    Formula *f;
-    int f_owner;
-    int fid;
-
-    AtomicConsumeRegex(Formula *f) : f(f), f_owner(1) {}
-    ~AtomicConsumeRegex();
-    void accept(ConsumeRegexVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const ConsumeRegex *r) const override {
-        return r->equalAtomic(this);
-    }
-    bool equalAtomic(const AtomicConsumeRegex *r) const override;
-};
-
-struct OrConsumeRegex : ConsumeRegex {
-    ConsumeRegex *left, *right;
-
-    OrConsumeRegex(ConsumeRegex *left, ConsumeRegex *right) : left(left), right(right) {}
-    ~OrConsumeRegex() {
-        if (left != NULL) delete left;
-        if (right != NULL) delete right;
-    }
-    void accept(ConsumeRegexVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const ConsumeRegex *r) const override {
-        return r->equalOr(this);
-    }
-    bool equalOr(const OrConsumeRegex *r) const override {
-        return (left->equal(r->left) && right->equal(r->right)) || (left->equal(r->right) && right->equal(r->left));
-    }
-};
-
-struct ConcatConsumeRegex : ConsumeRegex {
-    ConsumeRegex *left, *right;
-
-    ConcatConsumeRegex(ConsumeRegex *left, ConsumeRegex *right) : left(left), right(right) {}
-    ~ConcatConsumeRegex() {
-        if (left != NULL) delete left;
-        if (right != NULL) delete right;
-    }
-    void accept(ConsumeRegexVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const ConsumeRegex *r) const override {
-        return r->equalConcat(this);
-    }
-    bool equalConcat(const ConcatConsumeRegex *r) const override {
-        return (left->equal(r->left) && right->equal(r->right)) || (left->equal(r->right) && right->equal(r->left));
-    }
-};
-
-struct StarConsumeRegex : ConsumeRegex {
-    ConsumeRegex *body;
-
-    StarConsumeRegex(ConsumeRegex *body) : body(body) {}
-    ~StarConsumeRegex() {
-        if (body != NULL) delete body;
-    }
-    void accept(ConsumeRegexVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const ConsumeRegex *r) const override {
-        return r->equalStar(this);
-    }
-    bool equalStar(const StarConsumeRegex *r) const override {
         return body->equal(r->body);
     }
 };
@@ -298,28 +217,10 @@ struct Formula {
     virtual void accept(FormulaVisitor &v) = 0;
 
     virtual bool equal(const Formula *f) const = 0;
-    virtual bool equalBw(const BwFormula *f) const {
-        return false;
-    }
-    virtual bool equalBwConsume(const BwConsumeFormula *f) const {
-        return false;
-    }
-    virtual bool equalBwOne(const BwOneFormula *f) const {
-        return false;
-    }
-    virtual bool equalFw(const FwFormula *f) const {
-        return false;
-    }
-    virtual bool equalFwConsume(const FwConsumeFormula *f) const {
-        return false;
-    }
-    virtual bool equalFwOne(const FwOneFormula *f) const {
-        return false;
-    }
     virtual bool equalBool(const BoolFormula *f) const {
         return false;
     }
-    virtual bool equalPred(const PredFormula *f) const {
+    virtual bool equalAtom(const AtomFormula *f) const {
         return false;
     }
     virtual bool equalNeg(const NegFormula *f) const {
@@ -329,12 +230,6 @@ struct Formula {
         return false;
     }
     virtual bool equalOr(const OrFormula *f) const {
-        return false;
-    }
-    virtual bool equalImp(const ImpFormula *f) const {
-        return false;
-    }
-    virtual bool equalEq(const EqFormula *f) const {
         return false;
     }
     virtual bool equalPrev(const PrevFormula *f) const {
@@ -349,125 +244,11 @@ struct Formula {
     virtual bool equalUntil(const UntilFormula *f) const {
         return false;
     }
-};
-
-struct BwFormula : Formula {
-    Regex *r;
-    timestamp from, to;
-
-    BwFormula(Regex *r, interval in) : r(r), from(in.from), to(in.to) {}
-    ~BwFormula() {
-        if (r != NULL) delete r;
+    virtual bool equalBw(const BwFormula *f) const {
+        return false;
     }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalBw(this);
-    }
-    bool equalBw(const BwFormula *f) const override {
-        return r->equal(f->r) && from == f->from && to == f->to;
-    }
-};
-
-struct BwConsumeFormula : Formula {
-    ConsumeRegex *r;
-    timestamp from, to;
-
-    BwConsumeFormula(ConsumeRegex *r, interval in) : r(r), from(in.from), to(in.to) {}
-    ~BwConsumeFormula() {
-        if (r != NULL) delete r;
-    }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalBwConsume(this);
-    }
-    bool equalBwConsume(const BwConsumeFormula *f) const override {
-        return r->equal(f->r) && from == f->from && to == f->to;
-    }
-};
-
-struct BwOneFormula : Formula {
-    Regex *r;
-    timestamp delta;
-
-    BwOneFormula(Regex *r, timestamp delta) : r(r), delta(delta) {}
-    ~BwOneFormula() {
-        if (r != NULL) delete r;
-    }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalBwOne(this);
-    }
-    bool equalBwOne(const BwOneFormula *f) const override {
-        return r->equal(f->r) && delta == f->delta;
-    }
-};
-
-struct FwFormula : Formula {
-    Regex *r;
-    timestamp from, to;
-
-    FwFormula(Regex *r, interval in) : r(r), from(in.from), to(in.to) {}
-    ~FwFormula() {
-        if (r != NULL) delete r;
-    }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalFw(this);
-    }
-    bool equalFw(const FwFormula *f) const override {
-        return r->equal(f->r) && from == f->from && to == f->to;
-    }
-};
-
-struct FwConsumeFormula : Formula {
-    ConsumeRegex *r;
-    timestamp from, to;
-
-    FwConsumeFormula(ConsumeRegex *r, interval in) : r(r), from(in.from), to(in.to) {}
-    ~FwConsumeFormula() {
-        if (r != NULL) delete r;
-    }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalFwConsume(this);
-    }
-    bool equalFwConsume(const FwConsumeFormula *f) const override {
-        return r->equal(f->r) && from == f->from && to == f->to;
-    }
-};
-
-struct FwOneFormula : Formula {
-    Regex *r;
-    timestamp delta;
-
-    FwOneFormula(Regex *r, timestamp delta) : r(r), delta(delta) {}
-    ~FwOneFormula() {
-        if (r != NULL) delete r;
-    }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalFwOne(this);
-    }
-    bool equalFwOne(const FwOneFormula *f) const override {
-        return r->equal(f->r) && delta == f->delta;
+    virtual bool equalFw(const FwFormula *f) const {
+        return false;
     }
 };
 
@@ -490,26 +271,26 @@ struct BoolFormula : Formula {
     }
 };
 
-struct PredFormula : Formula {
+struct AtomFormula : Formula {
     const char *pred_name;
     int pred;
     int pred_owner;
 
-    PredFormula(const char *pred_name, int pred, int pred_owner = 0) : Formula(0), pred_name(pred_name), pred(pred), pred_owner(pred_owner) {}
-    ~PredFormula() {
+    AtomFormula(const char *pred_name, int pred, int pred_owner = 0) : Formula(0), pred_name(pred_name), pred(pred), pred_owner(pred_owner) {}
+    ~AtomFormula() {
         if (pred_owner) delete [] pred_name;
     }
     bool eval(const Event *e) const override {
-        return e->evalPred(pred_name, pred);
+        return e->evalAtom(pred_name, pred);
     }
     void accept(FormulaVisitor &v) override {
         v.visit(this);
     }
 
     bool equal(const Formula *f) const override {
-        return f->equalPred(this);
+        return f->equalAtom(this);
     }
-    bool equalPred(const PredFormula *f) const override {
+    bool equalAtom(const AtomFormula *f) const override {
         return pred == f->pred;
     }
 };
@@ -555,7 +336,7 @@ struct AndFormula : Formula {
         return f->equalAnd(this);
     }
     bool equalAnd(const AndFormula *sub) const override {
-        return (f->equal(sub->f) && g->equal(sub->g)) || (f->equal(sub->g) && g->equal(sub->f));
+        return f->equal(sub->f) && g->equal(sub->g);
     }
 };
 
@@ -578,53 +359,7 @@ struct OrFormula : Formula {
         return f->equalOr(this);
     }
     bool equalOr(const OrFormula *sub) const override {
-        return (f->equal(sub->f) && g->equal(sub->g)) || (f->equal(sub->g) && g->equal(sub->f));
-    }
-};
-
-struct ImpFormula : Formula {
-    Formula *f, *g;
-
-    ImpFormula(Formula *f, Formula *g) : Formula(f->is_temporal || g->is_temporal), f(f), g(g) {}
-    ~ImpFormula() override {
-        if (f != NULL) delete f;
-        if (g != NULL) delete g;
-    }
-    bool eval(const Event *e) const override {
-        return !f->eval(e) || g->eval(e);
-    }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalImp(this);
-    }
-    bool equalImp(const ImpFormula *sub) const override {
         return f->equal(sub->f) && g->equal(sub->g);
-    }
-};
-
-struct EqFormula : Formula {
-    Formula *f, *g;
-
-    EqFormula(Formula *f, Formula *g) : Formula(f->is_temporal || g->is_temporal), f(f), g(g) {}
-    ~EqFormula() override {
-        if (f != NULL) delete f;
-        if (g != NULL) delete g;
-    }
-    bool eval(const Event *e) const override {
-        return f->eval(e) == g->eval(e);
-    }
-    void accept(FormulaVisitor &v) override {
-        v.visit(this);
-    }
-
-    bool equal(const Formula *f) const override {
-        return f->equalEq(this);
-    }
-    bool equalEq(const EqFormula *sub) const override {
-        return (f->equal(sub->f) && g->equal(sub->g)) || (f->equal(sub->g) && g->equal(sub->f));
     }
 };
 
@@ -707,6 +442,46 @@ struct UntilFormula : Formula {
     }
     bool equalUntil(const UntilFormula *sub) const override {
         return f->equal(sub->f) && g->equal(sub->g) && from == sub->from && to == sub->to;
+    }
+};
+
+struct BwFormula : Formula {
+    Regex *r;
+    timestamp from, to;
+
+    BwFormula(Regex *r, interval in) : r(r), from(in.from), to(in.to) {}
+    ~BwFormula() {
+        if (r != NULL) delete r;
+    }
+    void accept(FormulaVisitor &v) override {
+        v.visit(this);
+    }
+
+    bool equal(const Formula *f) const override {
+        return f->equalBw(this);
+    }
+    bool equalBw(const BwFormula *f) const override {
+        return r->equal(f->r) && from == f->from && to == f->to;
+    }
+};
+
+struct FwFormula : Formula {
+    Regex *r;
+    timestamp from, to;
+
+    FwFormula(Regex *r, interval in) : r(r), from(in.from), to(in.to) {}
+    ~FwFormula() {
+        if (r != NULL) delete r;
+    }
+    void accept(FormulaVisitor &v) override {
+        v.visit(this);
+    }
+
+    bool equal(const Formula *f) const override {
+        return f->equalFw(this);
+    }
+    bool equalFw(const FwFormula *f) const override {
+        return r->equal(f->r) && from == f->from && to == f->to;
     }
 };
 

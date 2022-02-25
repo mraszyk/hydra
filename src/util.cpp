@@ -2,29 +2,17 @@
 
 #include <cstdlib>
 
+Boolean BooleanNot(Boolean b) {
+    if (b == TRUE) return FALSE;
+    else return TRUE;
+}
 Boolean BooleanAnd(Boolean b1, Boolean b2) {
-    if (b1 == UNRESOLVED || b2 == UNRESOLVED) return UNRESOLVED;
-    else if (b1 == FALSE || b2 == FALSE) return FALSE;
+    if (b1 == FALSE || b2 == FALSE) return FALSE;
     else return TRUE;
 }
 Boolean BooleanOr(Boolean b1, Boolean b2) {
-    if (b1 == UNRESOLVED || b2 == UNRESOLVED) return UNRESOLVED;
-    else if (b1 == TRUE || b2 == TRUE) return TRUE;
+    if (b1 == TRUE || b2 == TRUE) return TRUE;
     else return FALSE;
-}
-Boolean BooleanImp(Boolean b1, Boolean b2) {
-    if (b1 == UNRESOLVED || b2 == UNRESOLVED) return UNRESOLVED;
-    else if (b1 == FALSE || (b1 == TRUE && b2 == TRUE)) return TRUE;
-    else return FALSE;
-}
-Boolean BooleanEq(Boolean b1, Boolean b2) {
-    if (b1 == UNRESOLVED || b2 == UNRESOLVED) return UNRESOLVED;
-    else return (b1 == b2 ? TRUE : FALSE);
-}
-Boolean BooleanNot(Boolean b) {
-    if (b == TRUE) return FALSE;
-    else if (b == FALSE) return TRUE;
-    else return UNRESOLVED;
 }
 
 int parseNumber(const char *s, size_t *pos, timestamp *n)

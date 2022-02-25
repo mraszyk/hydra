@@ -3,8 +3,8 @@
 
 #include "util.h"
 
-extern int pure_mdl;
 extern int grep;
+extern int mdlaerial;
 
 struct interval {
     timestamp from, to;

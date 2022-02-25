@@ -15,15 +15,15 @@
 %option reentrant noyywrap never-interactive nounistd
 %option bison-bridge
 
-LPAREN      \(
-RPAREN      \)
+OPEN        \(
+CLOSE       \)
  
-INTLPAREN   \[
-INTRPAREN   \]
+INTOPEN     \[
+INTCLOSE    \]
 
 NUMBER      [0-9]*
-ALPHA       [a-zA-Z$]
-ALPHANUMS   [a-zA-Z$0-9_'"]*
+ALPHA       [a-zA-Z]
+ALPHANUMS   [a-zA-Z0-9]*
 WS          [ \r\n\t]*
  
 %%
@@ -40,26 +40,24 @@ SINCE               { return TOKEN_SINCE; }
 UNTIL               { return TOKEN_UNTIL; }
 ONCE                { return TOKEN_ONCE; }
 EVENTUALLY          { return TOKEN_EVENTUALLY; }
-HISTORICALLY        { return TOKEN_HISTORICALLY; }
+PAST_ALWAYS         { return TOKEN_PAST_ALWAYS; }
 ALWAYS              { return TOKEN_ALWAYS; }
-◁                   { return TOKEN_MATCH_PAST; }
-▷                   { return TOKEN_MATCH_FUTURE; }
-◁r                  { return TOKEN_MATCH_CONSUME_PAST; }
-▷r                  { return TOKEN_MATCH_CONSUME_FUTURE; }
+◁                   { return TOKEN_BACKWARD; }
+▷                   { return TOKEN_FORWARD; }
 \?                  { return TOKEN_QUESTION; }
 \.                  { return TOKEN_DOT; }
-\+                  { return TOKEN_UNION; }
+\+                  { return TOKEN_PLUS; }
 \*                  { return TOKEN_STAR; }
 INFINITY            { return TOKEN_INFINITY; }
-{LPAREN}            { return TOKEN_LPAREN; }
-{RPAREN}            { return TOKEN_RPAREN; }
+{OPEN}              { return TOKEN_OPEN; }
+{CLOSE}             { return TOKEN_CLOSE; }
 
-{ALPHA}{ALPHANUMS}{LPAREN}{RPAREN}  { yylval->name = new char[strlen(yytext) + 10]; strcpy(yylval->name, yytext); return TOKEN_PRED; }
-{ALPHA}{ALPHANUMS}  { yylval->name = new char[strlen(yytext) + 10]; strcpy(yylval->name, yytext); return TOKEN_PRED; }
+{ALPHA}{ALPHANUMS}{OPEN}{CLOSE}  { yylval->name = new char[strlen(yytext) + 1]; strcpy(yylval->name, yytext); yylval->name[strlen(yytext) - 2] = 0; return TOKEN_ATOM; }
+{ALPHA}{ALPHANUMS}  { yylval->name = new char[strlen(yytext) + 1]; strcpy(yylval->name, yytext); return TOKEN_ATOM; }
 {NUMBER}            { if (parseNumber(yytext, NULL, &yylval->value)) throw std::runtime_error("interval bounds"); return TOKEN_NUMBER; }
-{INTLPAREN}         { return TOKEN_INTLPAREN; }
+{INTOPEN}           { return TOKEN_INTOPEN; }
 ,                   { return TOKEN_SEP; }
-{INTRPAREN}         { return TOKEN_INTRPAREN; }
+{INTCLOSE}          { return TOKEN_INTCLOSE; }
 
 .                   { throw std::runtime_error("unexpected character"); }
  

@@ -34,16 +34,8 @@ Formula *getAST(const char *formula)
 
 void printUsage()
 {
-    fprintf(stderr, "hydra MDL LOG [-pure_mdl] [-grep]\n");
+    fprintf(stderr, "hydra MDL LOG [-grep] [-mdlaerial]\n");
     exit(EXIT_FAILURE);
-}
-
-void printFmla(Formula *fmla)
-{
-    printf("Monitoring ");
-    PrintHydraFormulaVisitor f(stdout);
-    fmla->accept(f);
-    printf("\n");
 }
 
 struct TimePoint {
@@ -69,12 +61,11 @@ int main(int argc, char **argv)
         printUsage();
     }
     for (int i = 3; i < argc; i++) {
-        if (!strcmp(argv[i], "-pure_mdl")) {
-            pure_mdl = 1;
-        } else if (!strcmp(argv[i], "-grep")) {
+        if (!strcmp(argv[3], "-grep")) {
             grep = 1;
-        } else {
-            printUsage();
+        }
+        if (!strcmp(argv[3], "-mdlaerial")) {
+            mdlaerial = 1;
         }
     }
 
@@ -83,7 +74,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error: formula file open\n");
         exit(EXIT_FAILURE);
     }
-
     char *line = NULL;
     size_t length = 0;
     if (getline(&line, &length, mtl) == -1) {
@@ -98,7 +88,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error: %s\n", e.what());
         exit(EXIT_FAILURE);
     }
-    //if (!grep) printFmla(fmla);
     free(line);
 
     InputReader *input_reader;
@@ -116,11 +105,11 @@ int main(int argc, char **argv)
             tp.update(v.ts);
             if (grep) {
                 if (v.b == TRUE) printf("%d\n", tp.tp);
-            } else if (v.b != UNRESOLVED) {
+            } else {
+                CHECK(v.b == TRUE || v.b == FALSE);
                 printf("%d:%d %s\n", tp.ts, tp.off, (v.b == FALSE ? "false" : "true"));
             }
         } catch (const EOL &e) {
-            //if (!grep) printf("Bye.\n");
             break;
         }
     } while(true);

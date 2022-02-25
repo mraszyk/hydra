@@ -48,17 +48,17 @@ void patch(const Frag &f, NState *s);
 struct NFA {
     NState *start;
     NState matchstate; /* matching state */
-    int state_cnt;
     int list_id;
 
-    NFA(const Frag &f, int state_cnt);
+    NFA(const Frag &f);
     ~NFA();
 
     /* Collect all states (except matchstate) into a list. */
     void collectStates(NState *s, std::vector<NState *> &l);
 
     /* Follow Split arrows and matching labeled arrows to create a closed state set. */
-    void run_state(NState *s, const Event *e, std::vector<NState *> &l);
+    void run_state(NState *s, const vector<int> &e, std::vector<NState *> &l);
+    void run_states(const std::vector<NState *> &s, const vector<int> &e, std::vector<NState *> &l);
 };
 
 struct DState
@@ -66,15 +66,15 @@ struct DState
     NFA *nfa;
     std::vector<NState *> l;
     int accept;
-    DState *step;
     size_t idx;
 
-    DState(NFA *nfa, const std::vector<NState *> &l, size_t idx) : nfa(nfa), l(l), step(NULL), idx(idx) {
+    DState(NFA *nfa, const std::vector<NState *> &l, size_t idx) : nfa(nfa), l(l), idx(idx) {
+        std::vector<NState *> close;
+        nfa->run_states(l, vector<int>(), close);
         accept = 0;
-        for (size_t i = 0; i < l.size(); i++) {
-            if (l[i]->c == Match) {
+        for (size_t i = 0; !accept && i < close.size(); i++) {
+            if (close[i]->c == Match) {
                 accept = 1;
-                break;
             }
         }
     }
@@ -83,7 +83,7 @@ struct DState
 class DFA {
     NFA *nfa;
     std::map<std::vector<NState *>, DState *> state_cache;
-    std::vector<std::map<Event, DState *> > run_cache;
+    std::vector<std::map<vector<int>, DState *> > run_cache;
     size_t dstate_cnt;
 
 public:
@@ -100,8 +100,7 @@ public:
         return dstate_cnt;
     }
     DState *lookup(const std::vector<NState *> &l);
-    DState *run(DState *s, const Event *e);
-    DState *step(DState *s);
+    DState *run(DState *s, const vector<int> &e);
 };
 
 #endif /* __DFA_H__ */

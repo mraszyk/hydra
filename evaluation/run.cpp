@@ -6,10 +6,32 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+int parseline(char *pattern, char *line) {
+    size_t res = 0;
+    int i = 0;
+    while (line[i] && pattern[i]) {
+        if (line[i] != pattern[i]) return 0;
+        i++;
+    }
+    while (line[i]==' ' || line[i] == '\t') i++;
+    while (line[i] >= '0' && line[i] <= '9') {
+        res = 10 * res + (line[i] - '0');
+        i++;
+    }
+    while (line[i]==' ' || line[i] == '\t') i++;
+    if (line[i++] != 'k') return 0;
+    if (line[i++] != 'B') return 0;
+    if (line[i++] != '\n') return 0;
+    if (line[i]) return 0;
+    return res;
+}
+
 int main(int argc, char **argv) {
     int tle = atoi(argv[1]) * 1000;
     pid_t pid;
     size_t time, space;
+    char vmdata[666]="VmData:";
+    char vmstk[666]="VmStk:";
 
 {
     pid = fork();
@@ -23,34 +45,34 @@ int main(int argc, char **argv) {
         execv(argv[2], argv + 2);
         exit(EXIT_SUCCESS);
     } else {
+        char fname[666];
+        sprintf(fname, "/proc/%d/status", pid);
         int status;
         space = 0;
         auto started = std::chrono::high_resolution_clock::now();
         while (waitpid(pid, &status, WNOHANG) == 0) {
             auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - started).count() > tle) {
+            if (tle != 0 && std::chrono::duration_cast<std::chrono::milliseconds>(now - started).count() > tle) {
                 char cmd[12345];
                 sprintf(cmd, "kill -9 %d\n", pid);
                 system(cmd);
-                printf("%d %lu\n", tle, space);
+                printf("%d %d\n", tle, 0);
                 return 0;
             }
-            char cmd[12345];
-            sprintf(cmd, "pmap -d %d | tail -n 1 | egrep -o \"writeable/private: [0-9]*K\"", pid);
-            FILE *f = popen(cmd, "r");
-            char *res;
-            size_t n = 0;
-            getline(&res, &n, f);
-            pclose(f);
-            if (waitpid(pid, &status, WNOHANG) == 0) {
-                size_t cur_mem;
-                if (sscanf(res, "writeable/private: %luK\n", &cur_mem) != 1) {
-                    fprintf(stderr, "error: pmap\n");
-                } else if (cur_mem > space) {
-                    space = cur_mem;
-                }
+            size_t sum = 0;
+            FILE *f = fopen(fname, "r");
+            while (!feof(f)) {
+                char *res;
+                size_t n = 0;
+                getline(&res, &n, f);
+                sum += parseline(vmdata, res);
+                sum += parseline(vmstk, res);
+                free(res);
             }
-            free(res);
+            fclose(f);
+            if (waitpid(pid, &status, WNOHANG) == 0 && sum > space) {
+                space = sum;
+            }
         }
     }
 }

@@ -10,7 +10,7 @@ void patch(const Frag &f, NState *s)
     for (size_t i = 0; i < f.out.size(); i++) *f.out[i] = s;
 }
 
-NFA::NFA(const Frag &f, int state_cnt) : start(f.start), matchstate(Match, NULL, NULL), state_cnt(state_cnt + 1), list_id(0) {
+NFA::NFA(const Frag &f) : start(f.start), matchstate(Match, NULL, NULL), list_id(0) {
     patch(f, &matchstate);
 }
 
@@ -28,6 +28,33 @@ void NFA::collectStates(NState *s, std::vector<NState *> &l)
     l.push_back(s);
     collectStates(s->out, l);
     collectStates(s->out1, l);
+}
+
+void NFA::run_state(NState *s, const vector<int> &e, std::vector<NState *> &l)
+{
+    CHECK(s != NULL);
+    if (s->lastlist == list_id) return;
+    s->lastlist = list_id;
+    l.push_back(s);
+    switch (s->c) {
+        case Match:
+        case Wild:
+            break;
+        case Split:
+            run_state(s->out, e, l);
+            run_state(s->out1, e, l);
+            break;
+        default:
+            if (s->c < e.size() && e[s->c]) run_state(s->out, e, l);
+            break;
+    }
+}
+
+void NFA::run_states(const std::vector<NState *> &s, const vector<int> &e, std::vector<NState *> &l)
+{
+  list_id++;
+  for (size_t i = 0; i < s.size(); i++) run_state(s[i], e, l);
+  sort(l.begin(), l.end());
 }
 
 DFA::~DFA() {
@@ -49,63 +76,30 @@ DState *DFA::lookup(const std::vector<NState *> &l) {
     }
 }
 
-void NFA::run_state(NState *s, const Event *e, std::vector<NState *> &l)
+DState *DFA::run(DState *s, const vector<int> &e)
 {
-    CHECK(s != NULL);
-    if (s->lastlist == list_id) return;
-    s->lastlist = list_id;
-    l.push_back(s);
-    switch (s->c) {
-        case Match:
-        case Wild:
-            break;
-        case Split:
-            run_state(s->out, e, l);
-            run_state(s->out1, e, l);
-            break;
-        default:
-            if (e->eval(s->c)) run_state(s->out, e, l);
-            break;
-    }
-}
-
-DState *DFA::run(DState *s, const Event *e)
-{
-    std::map<Event, DState *>::iterator it = run_cache[s->idx].find(*e);
+    std::map<vector<int>, DState *>::iterator it = run_cache[s->idx].find(e);
     if (it == run_cache[s->idx].end()) {
         std::vector<NState *> l;
+        nfa->run_states(s->l, e, l);
+
+        std::vector<NState *> step;
         nfa->list_id++;
-
-        for (size_t i = 0; i < s->l.size(); i++) nfa->run_state(s->l[i], e, l);
-
-        sort(l.begin(), l.end());
-        DState *r = lookup(l);
-        return run_cache[s->idx][*e] = r;
-    } else {
-        return it->second;
-    }
-}
-
-DState *DFA::step(DState *s) {
-    if (s->step == NULL) {
-        std::vector<NState *> l;
-        nfa->list_id++;
-
-        for (size_t i = 0; i < s->l.size(); i++) {
-            NState *cur = s->l[i];
+        for (size_t i = 0; i < l.size(); i++) {
+            NState *cur = l[i];
             if (cur->c == Wild) {
                 NState *nex = cur->out;
                 if (nex->lastlist != nfa->list_id) {
                     nex->lastlist = nfa->list_id;
-                    l.push_back(nex);
+                    step.push_back(nex);
                 }
             }
         }
+        sort(step.begin(), step.end());
 
-        sort(l.begin(), l.end());
-        DState *r = lookup(l);
-        return s->step = r;
+        DState *r = lookup(step);
+        return run_cache[s->idx][e] = r;
     } else {
-        return s->step;
+        return it->second;
     }
 }
