@@ -55,7 +55,7 @@ To run VYDRA type:
 ```
 $ ./vydra ${formula} ${log}
 ```
-where 
+where
 ```
 ${formula} = path to a text file with a MTL/MDL formula
 ${log}     = path to a text file with a log
@@ -161,6 +161,27 @@ $ ./hydra ./examples/ex.mdl ./examples/ex.log
 4:1 true
 
 $ ./vydra ./examples/ex.mdl ./examples/ex.log
+0:0 false
+0:1 true
+1:0 false
+4:0 true
+4:1 true
+```
+
+HYDRA and VYDRA also support formulas in metric dynamic logic
+as defined in the paper [Almost Event-Rate Independent Monitoring](https://link.springer.com/article/10.1007/s10703-018-00328-3):
+```
+$ cat examples/ex.mdlaerial
+p0 OR (▷ [2,2] (p1? .)* p2?)
+
+$ ./hydra ./examples/ex.mdlaerial ./examples/ex.log -mdlaerial
+0:0 false
+0:1 true
+1:0 false
+4:0 true
+4:1 true
+
+$ ./vydra ./examples/ex.mdlaerial ./examples/ex.log -mdlaerial
 0:0 false
 0:1 true
 1:0 false
