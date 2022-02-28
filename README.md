@@ -16,21 +16,6 @@ This repository is the supplementary material for Martin Raszyk's PhD thesis.
 
 ---
 
-# Directory Structure:
-
-- `Dockerfile` - Dockerfile for this supplementary material
-- `hydra` - HYDRA's executable
-- `vydra` - VYDRA's executable
-- `mdl2mdl` - tool converting MDL formulas to MDL^{Aerial} formulas
-- `run_exp.sh` - script to run the experiments (see below for more details)
-- `run_tests.sh` - script to run the correctness tests (see below for more details)
-- `evaluation/` contains tools for running the experiments and correctness tests
-- `examples/` contains example formulas and logs
-- `src/` contains HYDRA's source code (in C++) and VYDRA's source code (the formally verified core in `verified.ml` and unverified code to parse the formula and trace in OCaml and C)
-- `aerial/`, `monpoly/`, and `reelay-codegen/` contain third-party tools for the empirical evaluation
-
----
-
 # Build
 
 We recommend running the experiments using `docker` and the provided `Dockerfile`.
@@ -42,6 +27,25 @@ sudo docker run -it hydra
 ```
 Once you run the second command above you will
 obtain a shell with all the tools installed.
+
+---
+
+# Directory Structure:
+
+- `Dockerfile` - Dockerfile for this supplementary material
+- `hydra` - HYDRA's executable
+- `vydra` - VYDRA's executable
+- `mdl2mdl` - tool converting MDL formulas to MDL^{Aerial} formulas
+- `run_exp.sh` - script to run the experiments (see below for more details)
+- `run_tests.sh` - script to run the correctness tests (see below for more details)
+- `evaluation/` contains tools for running the experiments and correctness tests
+- `examples/` contains example formulas and logs
+- `src/` contains HYDRA's source code (in C++) and VYDRA's source code (the formally verified core in `verified.ml` and unverified code to parse the formula and trace in OCaml and C)
+
+Further tools:
+- `aerial/`: the *Aerial* tool
+- `monpoly/`: the *MonPoly* tool and its verified core *(VeriMon)*
+- `reelay-codegen/`: the *Reelay* tool
 
 ---
 
@@ -226,9 +230,8 @@ $ ./run_exp.sh config_thesis.py
 After the script `run_exp.sh config_thesis.py` successfully finishes,
 the raw data from the experiments are contained in `evaluation/stats/`
 and the plots are stored in `evaluation/figs/`.
-The timeout per repetition (default: 200s) can be
-configured in the section `exp_config` of the configuration file
-`config_thesis.py`.
+The timeout (default: 200s) can be configured in the section `exp_config`
+of the configuration file `config_thesis.py`.
 
 If the time or memory usage does not fit into the predefined
 ranges in the plots, you can adjust the ranges by setting
