@@ -244,7 +244,7 @@ in the directory `evaluation/`.
 
 The individual experiments are described in Section 3.3.
 The mapping of the experiment names is summarized here:
-- Figure 3.22  -> `exp_scaling_pmtl`, `exp_scaling_mtl`, `exp_scaling_mdl`
-- Figure 3.23  -> `exp_mtl_fixed`
-- Figure 3.25  -> `exp_size_pmtl`, `exp_size_mtl`, `exp_size_mdl`
-- Figure 3.26  -> `exp_mtl_exp`, `exp_mdl_bw_quad`, `exp_mdl_fw_quad`
+- Figure 3.24  -> `exp_scaling_pmtl`, `exp_scaling_mtl`, `exp_scaling_mdl`
+- Figure 3.25  -> `exp_mtl_fixed`
+- Figure 3.27  -> `exp_size_pmtl`, `exp_size_mtl`, `exp_size_mdl`
+- Figure 3.28  -> `exp_mtl_exp`, `exp_mdl_bw_quad`, `exp_mdl_fw_quad`
